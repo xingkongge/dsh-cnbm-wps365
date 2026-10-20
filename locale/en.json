@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "WPS 365 Documents",
+    "description": "Read WPS 365 cloud documents as the signed-in user; visibility is decided entirely by WPS backend authorization."
+  }
+}

@@ -1,0 +1,13 @@
+# 本地验证用的 CLI 二进制与配置目录，不入库
+.tools/
+.wpscfg/
+node_modules/
+.backup/
+
+# 安装包归档：随版本留在本地 dist/，通过内网 Git 的 Release 附件分发，不提交
+dist/
+*.tgz
+*.tar.gz
+
+# macOS / 编辑器杂物
+.DS_Store

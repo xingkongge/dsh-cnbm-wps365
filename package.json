@@ -1,0 +1,45 @@
+{
+  "name": "@local/dsh-wps365",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "description": "WPS 365 云文档访问：以当前登录人的身份读取文档，可见范围完全由 WPS 后台授权决定。",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/",
+    "locale/",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "wps",
+    "wps365",
+    "wiki",
+    "knowledge-base"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

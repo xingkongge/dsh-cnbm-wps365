@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="WPS 365">
+  <rect x="8" y="14" width="36" height="42" rx="5" fill="#F0F0F0" stroke="#C9C9C9" stroke-width="2"/>
+  <path d="M18 24h16M18 32h16M18 40h9" stroke="#9A9A9A" stroke-width="3" stroke-linecap="round"/>
+  <path d="M44 22a12 12 0 0 1 12 12v10H44z" fill="#FF6A00" opacity="0.9"/>
+  <circle cx="50" cy="44" r="3" fill="#FFFFFF"/>
+</svg>

@@ -1,0 +1,15 @@
+# WPS 365 云文档插件：包一层官方 wps365-cli。
+#
+# 凭证与 token 全部由 CLI 自己持有（系统钥匙串），本插件不读取、不记录。
+# 可覆盖的 config 字段：
+#   cliPath       CLI 可执行文件路径；留空则按 WPS365_CLI → ~/.local/bin → PATH 探测
+#   configDir     CLI 配置目录；留空则用 CLI 自身默认位置（推荐）
+#   timeoutMs     单次 CLI 调用超时，默认 30000
+#   maxOutputChars 工具结果最大字符数，默认 20000
+#   readOnly      是否禁止写类命令，默认 true
+#   allowWrite    显式放开写类命令，默认 false（readOnly 为 true 时不生效）
+#   loginTimeoutMs 设备码登录等待上限，默认 300000
+- insert:
+    - id: wps365
+      name: '@local/dsh-wps365'
+      config: {}
