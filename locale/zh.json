@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "WPS 365 云文档",
-    "description": "以当前登录人的身份读取 WPS 365 云文档，可见范围完全由 WPS 后台授权决定。"
+    "title": "cnbm知识库",
+    "description": "以当前登录人的身份读取 WPS 365 知识库与云文档，可见范围完全由 WPS 后台授权决定。"
   }
 }

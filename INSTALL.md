@@ -1,14 +1,15 @@
-# WPS 365 插件安装手册（DSH）
+# cnbm知识库安装手册（DSH）
 
 以**当前登录人身份**读取 WPS 365 知识库与云文档。插件本身不做权限判断，可见范围完全由
 WPS 后台授权决定（应用 scope ∩ 可用范围 ∩ 个人权限）。
 
 | 项 | 值 |
 |---|---|
-| 插件包名 | `@local/dsh-wps365` |
-| 当前版本 | `1.2.0` |
-| 安装包 | `dist/local-dsh-wps365-1.2.0.tgz`（34,883 字节） |
-| SHA-256 | `33639f2843914bd83c08666ce48b271bb285d4532b6faa7981aa5b565440020a` |
+| 插件显示名 | cnbm知识库 |
+| 插件包名 | `@local/dsh-wps365`（技术标识不变） |
+| 当前版本 | `1.2.1` |
+| 安装包 | `dist/local-dsh-wps365-1.2.1.tgz`（35,361 字节） |
+| SHA-256 | `15c9c6c4fa755e6a557ac4228d5469507a0ad257c4a38803747a525dd5de79cf` |
 | 适用环境 | DeepSeek Harness 0.2.x（desktop profile） |
 | 依赖 | 官方 `wps365-cli` ≥ 0.3.6 |
 
@@ -49,29 +50,29 @@ dsh plugin --profile desktop add git+https://<内网Git地址>/dsh-wps365.git
 
 ### 方式 B：安装包（tarball）
 
-从内网 Git 的 Release 附件（或内网文件盘）取得 `local-dsh-wps365-1.2.0.tgz`，先校验：
+从内网 Git 的 Release 附件（或内网文件盘）取得 `local-dsh-wps365-1.2.1.tgz`，先校验：
 
 ```bash
-shasum -a 256 local-dsh-wps365-1.2.0.tgz
-# 应为 33639f2843914bd83c08666ce48b271bb285d4532b6faa7981aa5b565440020a
+shasum -a 256 local-dsh-wps365-1.2.1.tgz
+# 应为 15c9c6c4fa755e6a557ac4228d5469507a0ad257c4a38803747a525dd5de79cf
 ```
 
 然后安装：
 
 ```bash
-dsh plugin --profile desktop add ./local-dsh-wps365-1.2.0.tgz
+dsh plugin --profile desktop add ./local-dsh-wps365-1.2.1.tgz
 ```
 
 ### 方式 C：私有 npm 源
 
 ```bash
-dsh plugin --profile desktop add @your-scope/dsh-wps365@1.2.0
+dsh plugin --profile desktop add @your-scope/dsh-wps365@1.2.1
 ```
 
 安装完成后**完全退出并重开 DeepSeek Harness**（Host 工具可热更新，客户端面板与源码必须重启才加载）。
 重开后：
 
-- 侧栏出现「WPS 365」图标 → 点击进入中央面板（状态 / 登录 / 知识库 / 搜索 / 读正文）；
+- 侧栏出现「cnbm知识库」图标 → 点击进入中央面板（状态 / 登录 / 知识库 / 搜索 / 读正文）；
 - 会话工具集中出现 15 个 `wps365_*` 工具。
 
 ## 四、配置应用凭证与登录（每人一次）
@@ -133,7 +134,7 @@ dsh plugin --profile desktop add ./local-dsh-wps365-<新版本>.tgz
 
 # 卸载
 dsh plugin --profile desktop remove @local/dsh-wps365
-# 或：设置 → 插件 → 找到「WPS 365」→ 卸载，然后重启
+# 或：设置 → 插件 → 找到「cnbm知识库」→ 卸载，然后重启
 ```
 
 回滚：保留旧版本 tarball 与 `dist/SHA256SUMS`，安装旧版本即可；回滚后同样需要重启。

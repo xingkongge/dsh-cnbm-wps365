@@ -1,6 +1,9 @@
-# WPS 365 云文档插件（DSH）
+# cnbm知识库（WPS 365 云文档插件，DSH）
 
-以**当前登录人的身份**读取 WPS 365 云文档。可见范围完全由 WPS 后台授权决定——
+> 显示名：**cnbm知识库**。技术标识保持不变：包名 `@local/dsh-wps365`、工具前缀 `wps365_*`、
+> 路由 `/wps365`、客户端模块 id 都与包名一致；改名只影响 UI 展示（插件页标题、侧栏图标、面板与页面标题）。
+
+以**当前登录人的身份**读取 WPS 365 知识库与云文档。可见范围完全由 WPS 后台授权决定——
 插件不做任何权限判断，也不缓存任何凭证。
 
 ```
@@ -71,7 +74,7 @@ wps365-cli auth login --device
 ### 打包分发（本地发版）
 
 ```bash
-node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.0.tgz + dist/SHA256SUMS（约 35KB）
+node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.1.tgz + dist/SHA256SUMS（约 35KB）
 ```
 
 产物已验证**自包含**：解包后可直接 `import`，15 个工具全部注册，不依赖工作区里的任何其它文件。
@@ -80,8 +83,8 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.0.tgz + dist/SHA25
 | 分发方式 | 成员侧安装命令 |
 |---------|---------------|
 | **内网 Git（推荐）** | `dsh plugin --profile desktop add git+https://内网/…/dsh-wps365.git` |
-| tarball | `dsh plugin --profile desktop add ./dist/local-dsh-wps365-1.2.0.tgz` |
-| 私有 npm | `dsh plugin --profile desktop add @your-scope/dsh-wps365@1.2.0` |
+| tarball | `dsh plugin --profile desktop add ./dist/local-dsh-wps365-1.2.1.tgz` |
+| 私有 npm | `dsh plugin --profile desktop add @your-scope/dsh-wps365@1.2.1` |
 | 侧边栏 GUI | 插件 → 安装，粘贴上述任一地址 |
 
 包内只含 12 个文件：`index.js` / `client.js` / `lib/runner.js` / `lib/ui.js` / `lib/ui-page.js` /
@@ -92,7 +95,7 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.0.tgz + dist/SHA25
 `RELEASING.md` 是发版流程。工作区根目录的 `PLUGINS.md` 是本机插件索引，`plugin-docs/` 是「插件库」知识库的
 粘贴源（索引 + 手册），知识库不存二进制制品。`private: true` 保证不会被误发到公共 npm。
 
-安装成功后 Host 工具可经 HMR 立即出现；**但客户端面板（`client.js`）与源码改动需要完全退出并重开应用**才会加载新的 JS 模块。验证方式：侧栏出现「WPS 365」图标，或调用 `wps365_status`。
+安装成功后 Host 工具可经 HMR 立即出现；**但客户端面板（`client.js`）与源码改动需要完全退出并重开应用**才会加载新的 JS 模块。验证方式：侧栏出现「cnbm知识库」图标，或调用 `wps365_status`。
 
 > `dsh` 可执行文件在 `DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh`，未加入 PATH；GUI 安装则用侧边栏插件页。
 > `plugin_manager` 工具仅在 **Creator 预设**启用，且预设切换只对新会话生效——已在运行的老会话工具集不会变。
@@ -103,7 +106,7 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.0.tgz + dist/SHA25
 
 | 入口 | 位置 | 说明 |
 |------|------|------|
-| **内嵌面板（推荐）** | 侧栏「WPS 365」图标 → 中央面板 | 与 Harness 一体，跟随深浅色主题；状态/登录、知识库钻取、搜索、正文阅读都在面板内完成 |
+| **内嵌面板（推荐）** | 侧栏「cnbm知识库」图标 → 中央面板 | 与 Harness 一体，跟随深浅色主题；状态/登录、知识库钻取、搜索、正文阅读都在面板内完成 |
 | 独立页面（兜底） | `${GUI 同源地址}/wps365` | 自包含 HTML，无构建步骤，适合排障、深链或在没有面板的宿主里使用 |
 
 > 页面端口由 Harness 启动时动态分配（不再是固定 19387），请从当前 GUI 地址取同源路径，

@@ -1,5 +1,5 @@
 /**
- * WPS 365 Host 插件。
+ * cnbm知识库（WPS 365） Host 插件。
  *
  * 能力边界：本插件不实现授权、不做权限判定。它只把"当前登录人的身份"
  * 通过官方 wps365-cli 发到 WPS 服务端，服务端返回什么就是该账号被授权
@@ -310,7 +310,7 @@ export function apply(ctx, rawConfig = {}) {
   register({
     name: 'wps365_status',
     description:
-      '检查 WPS 365 连接状态：CLI 是否安装、业务命令是否可用、应用凭证、是否已登录、令牌实际授予了哪些 scope。排障先调它。',
+      '检查 cnbm知识库（WPS 365）连接状态：CLI 是否安装、业务命令是否可用、应用凭证、是否已登录、令牌实际授予了哪些 scope。排障先调它。',
     parameters: { type: 'object', properties: {} },
     output: TEXT_OUTPUT,
     async execute(_args, exec) {
@@ -734,7 +734,7 @@ export function apply(ctx, rawConfig = {}) {
   register({
     name: 'wps365_api',
     description:
-      '直接调用 WPS 365 开放平台端点，用于精装命令未覆盖的能力。默认只允许 GET/HEAD；写方法需要显式开启写模式。',
+      '直接调用 cnbm知识库（WPS 365）开放平台端点，用于精装命令未覆盖的能力。默认只允许 GET/HEAD；写方法需要显式开启写模式。',
     parameters: {
       type: 'object',
       properties: {

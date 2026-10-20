@@ -1,5 +1,5 @@
 /**
- * WPS 365 Web 客户端：把插件面板注册进 Harness 的侧栏与中央面板槽位。
+ * cnbm知识库 Web 客户端：把插件面板注册进 Harness 的侧栏与中央面板槽位。
  *
  * - 侧栏图标：sidebar.panellist（id/order/label，图标组件拿 { size, active }）
  * - 中央面板：main（key 与侧栏 id 相同，点击侧栏图标即切换到这里）
@@ -111,7 +111,7 @@ window.__ModuleLoader__.load({
       const size = props && typeof props.size === 'number' ? props.size : 24
       const active = !!(props && props.active)
       return h('svg', {
-        viewBox: '0 0 64 64', width: size, height: size, role: 'img', 'aria-label': 'WPS 365',
+        viewBox: '0 0 64 64', width: size, height: size, role: 'img', 'aria-label': 'cnbm知识库',
         style: { display: 'block', opacity: active ? 1 : 0.9 },
       },
       h('rect', { x: 8, y: 14, width: 36, height: 42, rx: 5,
@@ -435,7 +435,7 @@ window.__ModuleLoader__.load({
       return h('div', { className: 'wps365-panel' },
         h('header', { className: 'wps365-head' },
           h('div', null,
-            h('div', { className: 'wps365-title' }, 'WPS 365'),
+            h('div', { className: 'wps365-title' }, 'cnbm知识库'),
             h('div', { className: 'wps365-sub' }, '以当前登录人身份读取知识库与云文档；可见范围完全由 WPS 后台授权决定')),
           h('div', { className: 'wps365-actions' },
             h('button', { className: 'wps365-btn', type: 'button', onClick: () => void refresh() }, '刷新'))),
@@ -467,7 +467,7 @@ window.__ModuleLoader__.load({
           return h('div', { className: 'wps365-panel' },
             h('section', { className: 'wps365-card' },
               h('div', { className: 'wps365-err' },
-                'WPS 365 面板加载失败：' + String((this.state.error && this.state.error.message) || this.state.error))))
+                'cnbm知识库面板加载失败：' + String((this.state.error && this.state.error.message) || this.state.error))))
         }
         return this.props.children
       }
@@ -503,7 +503,7 @@ window.__ModuleLoader__.load({
           name: 'sidebar.panellist',
           id: PANEL_ID,
           order: 50,
-          label: () => 'WPS 365',
+          label: () => 'cnbm知识库',
         }, (props) => h(WpsIcon, props || {})))
         safe('main', () => ctx.slots.register({
           name: 'main',

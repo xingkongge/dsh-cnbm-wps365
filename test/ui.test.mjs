@@ -99,7 +99,7 @@ describe('Web 控制台', () => {
     const res = await call('/wps365')
     assert.equal(res.statusCode, 200)
     assert.match(res.headers['content-type'], /text\/html/)
-    assert.match(res.body, /WPS 365 控制台/)
+    assert.match(res.body, /cnbm知识库/)
     // 自包含：不应引用任何外部脚本/样式
     assert.ok(!/<script[^>]+src=/.test(res.body), '不应有外部脚本')
     assert.ok(!/<link[^>]+href=/.test(res.body), '不应有外部样式')
@@ -108,7 +108,7 @@ describe('Web 控制台', () => {
   it('结尾斜杠也返回页面', async () => {
     const res = await call('/wps365/')
     assert.equal(res.statusCode, 200)
-    assert.match(res.body, /WPS 365 控制台/)
+    assert.match(res.body, /cnbm知识库/)
   })
 
   it('api/status 返回结构化状态', async () => {

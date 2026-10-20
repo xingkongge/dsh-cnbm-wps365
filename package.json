@@ -1,9 +1,9 @@
 {
   "name": "@local/dsh-wps365",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "type": "module",
-  "description": "WPS 365 云文档访问：以当前登录人的身份读取文档，可见范围完全由 WPS 后台授权决定。",
+  "description": "cnbm知识库（WPS 365 云文档）：以当前登录人的身份读取文档，可见范围完全由 WPS 后台授权决定。",
   "icon": "./icon.svg",
   "exports": {
     ".": "./index.js",
