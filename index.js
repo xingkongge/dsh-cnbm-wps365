@@ -26,7 +26,7 @@ import {
 } from './lib/runner.js'
 import { registerWebUi } from './lib/ui.js'
 
-export const name = 'wps365'
+export const name = 'cnbm-knowledge'
 export const inject = ['tools']
 
 /** 统一的文本型工具结果声明。 */
@@ -131,7 +131,7 @@ export function apply(ctx, rawConfig = {}) {
       }
     }
     if (!auth.delegated.available) {
-      return { ok: false, text: '⚠️ 尚未登录 WPS。\n\n下一步：调用 wps365_login，用企业账号完成设备码授权。' }
+      return { ok: false, text: '⚠️ 尚未登录 WPS。\n\n下一步：调用 cnbm_login，用企业账号完成设备码授权。' }
     }
     if (scopes) {
       const blocked = guardScope(auth, scopes)
@@ -308,7 +308,7 @@ export function apply(ctx, rawConfig = {}) {
 
   // ── 环境与身份 ──────────────────────────────────────────────────
   register({
-    name: 'wps365_status',
+    name: 'cnbm_status',
     description:
       '检查 cnbm知识库（WPS 365）连接状态：CLI 是否安装、业务命令是否可用、应用凭证、是否已登录、令牌实际授予了哪些 scope。排障先调它。',
     parameters: { type: 'object', properties: {} },
@@ -362,7 +362,7 @@ export function apply(ctx, rawConfig = {}) {
         lines.push('下一步：wps365-cli auth setup --client-id <团队AppID> --client-secret <向管理员获取>')
       } else if (!auth.delegated.available) {
         lines.push('', '状态：not-logged-in')
-        lines.push('下一步：调用 wps365_login 发起设备码登录，用企业账号完成授权。')
+        lines.push('下一步：调用 cnbm_login 发起设备码登录，用企业账号完成授权。')
       } else if (auth.grantedScopes && auth.grantedScopes.length === 0) {
         lines.push('', '状态：logged-in-but-scopeless')
         lines.push('⚠️ 登录成功但令牌没有任何 scope，所有业务接口都会返回 403。')
@@ -378,14 +378,14 @@ export function apply(ctx, rawConfig = {}) {
         if (prompt.userCode) lines.push(`用户码：${prompt.userCode}`)
         if (prompt.url) lines.push(`验证地址：${prompt.url}`)
       } else if (pending && pending.settled && pending.exitCode !== 0 && pending.exitCode !== null) {
-        lines.push('', `上次登录进程已退出（exit=${pending.exitCode}），若未登录请重新调用 wps365_login。`)
+        lines.push('', `上次登录进程已退出（exit=${pending.exitCode}），若未登录请重新调用 cnbm_login。`)
       }
       return lines.join('\n')
     },
   })
 
   register({
-    name: 'wps365_login',
+    name: 'cnbm_login',
     description:
       '发起 WPS 设备码登录。传 scopes 可申请指定权限（不传则只能拿到空权限令牌）。返回验证地址与用户码，由用户用自己的企业账号在浏览器完成授权。',
     parameters: {
@@ -417,7 +417,7 @@ export function apply(ctx, rawConfig = {}) {
           prompt.userCode ? `用户码：${prompt.userCode}` : '',
           prompt.url ? `验证地址：${prompt.url}` : '',
           '',
-          '完成后调用 wps365_status 确认。',
+          '完成后调用 cnbm_status 确认。',
         ].filter(Boolean).join('\n')
       }
 
@@ -441,7 +441,7 @@ export function apply(ctx, rawConfig = {}) {
         prompt.url ? `验证地址：${prompt.url}` : '（未识别到验证地址，见下方原始输出）',
         prompt.userCode ? `用户码：${prompt.userCode}` : '',
         '',
-        '授权完成后调用 wps365_status 确认登录结果（本工具不会等待授权完成）。',
+        '授权完成后调用 cnbm_status 确认登录结果（本工具不会等待授权完成）。',
         '',
         '--- CLI 原始输出 ---',
         rawText || '（暂无输出）',
@@ -450,7 +450,7 @@ export function apply(ctx, rawConfig = {}) {
   })
 
   register({
-    name: 'wps365_logout',
+    name: 'cnbm_logout',
     description: '退出当前 WPS 用户授权（保留应用凭证，之后可直接重新登录）。',
     parameters: { type: 'object', properties: {} },
     output: TEXT_OUTPUT,
@@ -468,7 +468,7 @@ export function apply(ctx, rawConfig = {}) {
   })
 
   register({
-    name: 'wps365_me',
+    name: 'cnbm_me',
     description: '获取当前登录的 WPS 用户信息（用于确认登录的是哪个企业身份）。需要 kso.user_base.read。',
     parameters: { type: 'object', properties: {} },
     output: TEXT_OUTPUT,
@@ -481,7 +481,7 @@ export function apply(ctx, rawConfig = {}) {
 
   // ── 知识库（wiki）：只需要 kso.wiki.readwrite ──────────────────
   register({
-    name: 'wps365_wiki_spaces',
+    name: 'cnbm_wiki_spaces',
     description: '列出当前账号可访问的 WPS 知识库（wiki space），返回 space-id，后续列节点和搜索都需要它。',
     parameters: {
       type: 'object',
@@ -503,12 +503,12 @@ export function apply(ctx, rawConfig = {}) {
   })
 
   register({
-    name: 'wps365_wiki_nodes',
+    name: 'cnbm_wiki_nodes',
     description: '列出知识库中某个节点下的子节点（文件/文件夹）。parent-id 用 0 表示知识库根目录。',
     parameters: {
       type: 'object',
       properties: {
-        spaceId: { type: 'string', description: '知识库 ID（来自 wps365_wiki_spaces）' },
+        spaceId: { type: 'string', description: '知识库 ID（来自 cnbm_wiki_spaces）' },
         parentId: { type: 'string', description: '父节点 ID，根目录用 0' },
         pageSize: { type: 'number', description: '分页大小' },
         pageToken: { type: 'string', description: '分页标记' },
@@ -532,7 +532,7 @@ export function apply(ctx, rawConfig = {}) {
   })
 
   register({
-    name: 'wps365_wiki_node_meta',
+    name: 'cnbm_wiki_node_meta',
     description: '读取知识库单个节点的元信息（名称、类型、大小、创建/修改人、时间等）。',
     parameters: {
       type: 'object',
@@ -559,7 +559,7 @@ export function apply(ctx, rawConfig = {}) {
   })
 
   register({
-    name: 'wps365_wiki_search',
+    name: 'cnbm_wiki_search',
     description:
       '在知识库中按关键字搜索文档。返回命中文件与正文高亮片段——片段可直接用于回答内容性问题，即使没有文档正文读取权限。',
     parameters: {
@@ -588,13 +588,13 @@ export function apply(ctx, rawConfig = {}) {
   })
 
   register({
-    name: 'wps365_wiki_read',
+    name: 'cnbm_wiki_read',
     description:
       '读取知识库中一篇文档的完整正文（Markdown）。自动把知识库节点 ID 解析为真实文件 ID，无需提前知道 drive-id。需要 kso.file.read。',
     parameters: {
       type: 'object',
       properties: {
-        fileId: { type: 'string', description: '知识库节点 ID（来自 wps365_wiki_nodes / wps365_wiki_search）' },
+        fileId: { type: 'string', description: '知识库节点 ID（来自 cnbm_wiki_nodes / cnbm_wiki_search）' },
         format: { type: 'string', description: '内容格式：markdown（默认）/ plain / html' },
       },
       required: ['fileId'],
@@ -616,7 +616,7 @@ export function apply(ctx, rawConfig = {}) {
 
   // ── 云文档（drive）：需要 drive/file scope ─────────────────────
   register({
-    name: 'wps365_docs_drives',
+    name: 'cnbm_docs_drives',
     description: '列出当前账号可访问的 WPS 云盘。需要 kso.drive.readwrite 等 drive 权限。',
     parameters: {
       type: 'object',
@@ -637,7 +637,7 @@ export function apply(ctx, rawConfig = {}) {
   })
 
   register({
-    name: 'wps365_docs_search',
+    name: 'cnbm_docs_search',
     description: '在当前账号有权限的范围内搜索 WPS 云文档。需要 drive/file scope。',
     parameters: {
       type: 'object',
@@ -663,7 +663,7 @@ export function apply(ctx, rawConfig = {}) {
   })
 
   register({
-    name: 'wps365_docs_list',
+    name: 'cnbm_docs_list',
     description: '列出指定云盘目录下的文件与文件夹。parent-id 用 0 表示根目录。需要 drive/file scope。',
     parameters: {
       type: 'object',
@@ -688,7 +688,7 @@ export function apply(ctx, rawConfig = {}) {
   })
 
   register({
-    name: 'wps365_docs_read',
+    name: 'cnbm_docs_read',
     description: '抽取 WPS 云文档的正文内容。需要 kso.file.read 或 kso.file.readwrite。',
     parameters: {
       type: 'object',
@@ -712,7 +712,7 @@ export function apply(ctx, rawConfig = {}) {
   })
 
   register({
-    name: 'wps365_docs_download',
+    name: 'cnbm_docs_download',
     description: '获取 WPS 文件的下载地址与参数（返回的是地址，不是文件本体）。需要 drive/file scope。',
     parameters: {
       type: 'object',
@@ -732,7 +732,7 @@ export function apply(ctx, rawConfig = {}) {
 
   // ── 兜底 ───────────────────────────────────────────────────────
   register({
-    name: 'wps365_api',
+    name: 'cnbm_api',
     description:
       '直接调用 cnbm知识库（WPS 365）开放平台端点，用于精装命令未覆盖的能力。默认只允许 GET/HEAD；写方法需要显式开启写模式。',
     parameters: {
@@ -850,11 +850,11 @@ export function apply(ctx, rawConfig = {}) {
       }
       if (dispose === null) {
         const logger = ctx.logger ?? runtime?.logger
-        logger?.warn?.('wps365: webServer 不可用，Web 控制台未启用（Agent 工具不受影响）')
+        logger?.warn?.('cnbm-knowledge: webServer 不可用，Web 控制台未启用（Agent 工具不受影响）')
       }
     } catch (error) {
       const logger = ctx.logger ?? runtime?.logger
-      logger?.warn?.('wps365: Web 控制台注册失败：' + String((error && error.message) || error))
+      logger?.warn?.('cnbm-knowledge: Web 控制台注册失败：' + String((error && error.message) || error))
     }
   }
 
@@ -863,6 +863,6 @@ export function apply(ctx, rawConfig = {}) {
   } else if (ctx.webServer !== undefined) {
     mountUi(ctx)
   } else {
-    ctx.logger?.warn?.('wps365: webServer 不可用，Web 控制台未启用（Agent 工具不受影响）')
+    ctx.logger?.warn?.('cnbm-knowledge: webServer 不可用，Web 控制台未启用（Agent 工具不受影响）')
   }
 }

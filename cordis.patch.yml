@@ -1,4 +1,4 @@
-# WPS 365 云文档插件：包一层官方 wps365-cli。
+# cnbm知识库（WPS 365）：包一层官方 wps365-cli。
 #
 # 凭证与 token 全部由 CLI 自己持有（系统钥匙串），本插件不读取、不记录。
 # 可覆盖的 config 字段：
@@ -10,6 +10,6 @@
 #   allowWrite    显式放开写类命令，默认 false（readOnly 为 true 时不生效）
 #   loginTimeoutMs 设备码登录等待上限，默认 300000
 - insert:
-    - id: wps365
-      name: '@local/dsh-wps365'
+    - id: cnbm-knowledge
+      name: '@cnbm/dsh-wps365'
       config: {}

@@ -6,10 +6,10 @@ WPS 后台授权决定（应用 scope ∩ 可用范围 ∩ 个人权限）。
 | 项 | 值 |
 |---|---|
 | 插件显示名 | cnbm知识库 |
-| 插件包名 | `@local/dsh-wps365`（技术标识不变） |
-| 当前版本 | `1.2.1` |
-| 安装包 | `dist/local-dsh-wps365-1.2.1.tgz`（35,361 字节） |
-| SHA-256 | `15c9c6c4fa755e6a557ac4228d5469507a0ad257c4a38803747a525dd5de79cf` |
+| 插件包名 | `@cnbm/dsh-wps365`（技术标识不变） |
+| 当前版本 | `2.0.0` |
+| 安装包 | `dist/cnbm-dsh-wps365-2.0.0.tgz`（35,497 字节） |
+| SHA-256 | `c9b2a1e363cd956b318c0188809d50c148a4d36933eb6179d4f01e69040faec5` |
 | 适用环境 | DeepSeek Harness 0.2.x（desktop profile） |
 | 依赖 | 官方 `wps365-cli` ≥ 0.3.6 |
 
@@ -50,30 +50,30 @@ dsh plugin --profile desktop add git+https://<内网Git地址>/dsh-wps365.git
 
 ### 方式 B：安装包（tarball）
 
-从内网 Git 的 Release 附件（或内网文件盘）取得 `local-dsh-wps365-1.2.1.tgz`，先校验：
+从内网 Git 的 Release 附件（或内网文件盘）取得 `cnbm-dsh-wps365-2.0.0.tgz`，先校验：
 
 ```bash
-shasum -a 256 local-dsh-wps365-1.2.1.tgz
-# 应为 15c9c6c4fa755e6a557ac4228d5469507a0ad257c4a38803747a525dd5de79cf
+shasum -a 256 cnbm-dsh-wps365-2.0.0.tgz
+# 应为 c9b2a1e363cd956b318c0188809d50c148a4d36933eb6179d4f01e69040faec5
 ```
 
 然后安装：
 
 ```bash
-dsh plugin --profile desktop add ./local-dsh-wps365-1.2.1.tgz
+dsh plugin --profile desktop add ./cnbm-dsh-wps365-2.0.0.tgz
 ```
 
 ### 方式 C：私有 npm 源
 
 ```bash
-dsh plugin --profile desktop add @your-scope/dsh-wps365@1.2.1
+dsh plugin --profile desktop add @cnbm/dsh-wps365@2.0.0
 ```
 
 安装完成后**完全退出并重开 DeepSeek Harness**（Host 工具可热更新，客户端面板与源码必须重启才加载）。
 重开后：
 
 - 侧栏出现「cnbm知识库」图标 → 点击进入中央面板（状态 / 登录 / 知识库 / 搜索 / 读正文）；
-- 会话工具集中出现 15 个 `wps365_*` 工具。
+- 会话工具集中出现 15 个 `cnbm_*` 工具。
 
 ## 四、配置应用凭证与登录（每人一次）
 
@@ -88,7 +88,7 @@ wps365-cli auth login --device --scopes kso.wiki.readwrite,kso.user_base.read,ks
 wps365-cli user me     # 应返回你的姓名 / 企业
 ```
 
-也可以装好插件后，在面板里点「登录 WPS」，或让 Agent 调用 `wps365_login`。
+也可以装好插件后，在面板里点「登录 WPS」，或让 Agent 调用 `cnbm_login`。
 
 > 已有令牌不会自动获得新 scope；scope 变更后必须重新登录。
 > `App Secret` 不要发群聊、不要提交到 Git、不要写入知识库。
@@ -98,8 +98,8 @@ wps365-cli user me     # 应返回你的姓名 / 企业
 | scope | 解锁能力 |
 |---|---|
 | `kso.wiki.readwrite` | 知识库列表 / 节点树 / 元信息 / 搜索（含正文高亮片段） |
-| `kso.user_base.read` | `wps365_me` |
-| `kso.file.read` | `wps365_wiki_read`、`wps365_docs_read`（完整正文） |
+| `kso.user_base.read` | `cnbm_me` |
+| `kso.file.read` | `cnbm_wiki_read`、`cnbm_docs_read`（完整正文） |
 | `kso.drive.readwrite` | 云盘列表 / 目录浏览 / 下载地址（本团队暂未开通） |
 
 ## 六、验证清单
@@ -108,7 +108,7 @@ wps365-cli user me     # 应返回你的姓名 / 企业
 2. 知识库列表能列出「信云智联企业知识库」「AI事业部知识库」等；
 3. 点开任一文档能读到完整 Markdown 正文；
 4. 搜索 `方案` 等关键字能返回带高亮片段的结果；
-5. 会话中调用 `wps365_status` 返回 `state: logged-in`。
+5. 会话中调用 `cnbm_status` 返回 `state: logged-in`。
 
 ## 七、排障（状态 → 动作）
 
@@ -125,15 +125,25 @@ wps365-cli user me     # 应返回你的姓名 / 企业
 
 ## 八、升级、回滚、卸载
 
+> **从 v1.x 升级到 v2.0.0 是破坏性改名**：包名从 `@local/dsh-wps365` 变为 `@cnbm/dsh-wps365`，
+> 工具从 `wps365_*` 变为 `cnbm_*`，页面路由从 `/wps365` 变为 `/cnbm`。
+> 先完全退出 DSH，移除旧包，再安装新包，最后重开应用：
+>
+> ```bash
+> dsh plugin --profile desktop remove @local/dsh-wps365
+> dsh plugin --profile desktop add ./cnbm-dsh-wps365-2.0.0.tgz
+> # 或：dsh plugin --profile desktop add git+https://<内网Git地址>/dsh-wps365.git
+> ```
+
 ```bash
 # 升级（Git 方式）：拉新 tag 后重新 add
 dsh plugin --profile desktop add git+https://<内网Git地址>/dsh-wps365.git
 
 # 升级（tarball 方式）：覆盖安装新版本包，然后完全重启
-dsh plugin --profile desktop add ./local-dsh-wps365-<新版本>.tgz
+dsh plugin --profile desktop add ./cnbm-dsh-wps365-<新版本>.tgz
 
 # 卸载
-dsh plugin --profile desktop remove @local/dsh-wps365
+dsh plugin --profile desktop remove @cnbm/dsh-wps365
 # 或：设置 → 插件 → 找到「cnbm知识库」→ 卸载，然后重启
 ```
 

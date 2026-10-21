@@ -12,7 +12,7 @@ wps365-plugin/                 ← 源码仓库（git init 后推送内网 Git�
 ├── RELEASING.md               ← 本文档
 ├── scripts/release.mjs        ← 打包 + 归档 + SHA-256
 ├── dist/                      ← 安装包归档（.gitignore，随 Release 分发）
-│   ├── local-dsh-wps365-1.2.0.tgz
+│   ├── cnbm-dsh-wps365-2.0.0.tgz
 │   └── SHA256SUMS
 └── .tools/ .wpscfg/ .backup/  ← 本机验证用，不入库
 ```
@@ -35,12 +35,12 @@ wps365-plugin/                 ← 源码仓库（git init 后推送内网 Git�
    # 也可指定包管理器：node scripts/release.mjs --pack-cmd npm
    ```
 
-   产物：`dist/local-dsh-wps365-<version>.tgz` + `dist/SHA256SUMS`，脚本会打印新的 SHA-256。
+   产物：`dist/cnbm-dsh-wps365-<version>.tgz` + `dist/SHA256SUMS`，脚本会打印新的 SHA-256。
 
 4. **自检**：解包目录能 `import`，`client.js` 语法通过：
 
    ```bash
-   TMP=$(mktemp -d) && tar -xzf dist/local-dsh-wps365-<version>.tgz -C "$TMP" \
+   TMP=$(mktemp -d) && tar -xzf dist/cnbm-dsh-wps365-<version>.tgz -C "$TMP" \
      && (cd "$TMP/package" && node -e "import('./index.js').then(()=>console.log('ok'))" && node --check client.js) \
      && rm -rf "$TMP"
    ```
@@ -54,7 +54,7 @@ wps365-plugin/                 ← 源码仓库（git init 后推送内网 Git�
    ```bash
    git add -A
    git commit -m "release: v<version>"
-   git tag -a v<version> -m "wps365 v<version>"
+   git tag -a v<version> -m "cnbm知识库 v<version>"
    ```
 
 7. **推内网 Git**（首次需加 remote）：
@@ -64,7 +64,7 @@ wps365-plugin/                 ← 源码仓库（git init 后推送内网 Git�
    git push -u origin main --tags
    ```
 
-8. **建 Release / 上传附件**：把 `dist/local-dsh-wps365-<version>.tgz` 与
+8. **建 Release / 上传附件**：把 `dist/cnbm-dsh-wps365-<version>.tgz` 与
    `dist/SHA256SUMS` 作为附件上传到该 tag 的 Release（Gitea/GitLab/内部制品库均可）。
 9. **通知团队**：发内网 Git 链接 + 安装手册文档链接；`App Secret` 走管理员单独发放。
 

@@ -47,7 +47,7 @@ function makeReq(url, { method = 'GET', host = '127.0.0.1:19387', origin, api = 
   return {
     url,
     method,
-    headers: { host, ...(api ? { 'x-dsh-wps365': '1' } : {}), ...(origin ? { origin } : {}) },
+    headers: { host, ...(api ? { 'x-dsh-cnbm': '1' } : {}), ...(origin ? { origin } : {}) },
   }
 }
 
@@ -75,8 +75,8 @@ describe('Web 控制台', () => {
   before(async () => {
     ctx = makeCtx()
     apply(ctx, { cliPath: LOCAL_CLI })
-    const spec = ctx.registered.find((entry) => entry.path === '/wps365')
-    assert.ok(spec, '应当注册 /wps365 路由')
+    const spec = ctx.registered.find((entry) => entry.path === '/cnbm')
+    assert.ok(spec, '应当注册 /cnbm 路由')
     handler = spec.handler
   })
 
@@ -91,12 +91,12 @@ describe('Web 控制台', () => {
   }
 
   it('注册了 prefix 路由', () => {
-    const spec = ctx.registered.find((entry) => entry.path === '/wps365')
+    const spec = ctx.registered.find((entry) => entry.path === '/cnbm')
     assert.equal(spec.kind, 'prefix')
   })
 
   it('根路径返回自包含 HTML 页面', async () => {
-    const res = await call('/wps365')
+    const res = await call('/cnbm')
     assert.equal(res.statusCode, 200)
     assert.match(res.headers['content-type'], /text\/html/)
     assert.match(res.body, /cnbm知识库/)
@@ -106,13 +106,13 @@ describe('Web 控制台', () => {
   })
 
   it('结尾斜杠也返回页面', async () => {
-    const res = await call('/wps365/')
+    const res = await call('/cnbm/')
     assert.equal(res.statusCode, 200)
     assert.match(res.body, /cnbm知识库/)
   })
 
   it('api/status 返回结构化状态', async () => {
-    const res = await call('/wps365/api/status')
+    const res = await call('/cnbm/api/status')
     assert.equal(res.statusCode, 200)
     const payload = JSON.parse(res.body)
     assert.equal(payload.ok, true)
@@ -121,7 +121,7 @@ describe('Web 控制台', () => {
   })
 
   it('api/spaces 走真实链路（未登录时返回可读错误而不是崩溃）', async () => {
-    const res = await call('/wps365/api/spaces')
+    const res = await call('/cnbm/api/spaces')
     assert.equal(res.statusCode, 200)
     const payload = JSON.parse(res.body)
     assert.ok(typeof payload.ok === 'boolean')
@@ -130,47 +130,47 @@ describe('Web 控制台', () => {
   })
 
   it('api/nodes 拒绝非法 ID', async () => {
-    const res = await call('/wps365/api/nodes?spaceId=..%2F..&parentId=0')
+    const res = await call('/cnbm/api/nodes?spaceId=..%2F..&parentId=0')
     const payload = JSON.parse(res.body)
     assert.equal(payload.ok, false)
     assert.match(payload.error, /不合法/)
   })
 
   it('api/read 拒绝非法 ID', async () => {
-    const res = await call('/wps365/api/read?fileId=a%2Fb')
+    const res = await call('/cnbm/api/read?fileId=a%2Fb')
     const payload = JSON.parse(res.body)
     assert.equal(payload.ok, false)
     assert.match(payload.error, /不合法/)
   })
 
   it('未知 api 路由返回 404', async () => {
-    const res = await call('/wps365/api/nope')
+    const res = await call('/cnbm/api/nope')
     assert.equal(res.statusCode, 404)
     assert.equal(JSON.parse(res.body).ok, false)
   })
 
   it('非回环 Host 被拒绝', async () => {
-    const res = await call('/wps365/api/status', { host: 'evil.example.com' })
+    const res = await call('/cnbm/api/status', { host: 'evil.example.com' })
     assert.equal(res.statusCode, 403)
   })
 
   it('跨站 Origin 被拒绝', async () => {
-    const res = await call('/wps365/api/status', { origin: 'https://evil.example.com' })
+    const res = await call('/cnbm/api/status', { origin: 'https://evil.example.com' })
     assert.equal(res.statusCode, 403)
   })
 
   it('API 缺少自定义请求头被拒绝', async () => {
-    const res = await call('/wps365/api/status', { api: false })
+    const res = await call('/cnbm/api/status', { api: false })
     assert.equal(res.statusCode, 403)
   })
 
   it('页面本身不需要自定义请求头', async () => {
-    const res = await call('/wps365', { api: false })
+    const res = await call('/cnbm', { api: false })
     assert.equal(res.statusCode, 200)
   })
 
   it('login 只接受 POST', async () => {
-    const res = await call('/wps365/api/login')
+    const res = await call('/cnbm/api/login')
     assert.equal(res.statusCode, 405)
   })
 })

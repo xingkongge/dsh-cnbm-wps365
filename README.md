@@ -1,7 +1,7 @@
 # cnbm知识库（WPS 365 云文档插件，DSH）
 
-> 显示名：**cnbm知识库**。技术标识保持不变：包名 `@local/dsh-wps365`、工具前缀 `wps365_*`、
-> 路由 `/wps365`、客户端模块 id 都与包名一致；改名只影响 UI 展示（插件页标题、侧栏图标、面板与页面标题）。
+> 显示名：**cnbm知识库**。v2.0.0 起技术标识也统一为 `cnbm` 前缀：包名 `@cnbm/dsh-wps365`、
+> 工具 `cnbm_*`、路由 `/cnbm`、客户端模块 id 与包名一致。从 v1.x 升级需要重新安装插件。
 
 以**当前登录人的身份**读取 WPS 365 知识库与云文档。可见范围完全由 WPS 后台授权决定——
 插件不做任何权限判断，也不缓存任何凭证。
@@ -51,7 +51,7 @@ wps365-cli auth setup --client-id <团队AppID> --client-secret <向管理员获
 wps365-cli auth login --device
 ```
 
-会打开浏览器并显示用户码，**用企业账号**确认授权。也可以装好插件后在对话里说「登录 WPS」，由 `wps365_login` 工具发起。
+会打开浏览器并显示用户码，**用企业账号**确认授权。也可以装好插件后在对话里说「登录 WPS」，由 `cnbm_login` 工具发起。
 
 验证：`wps365-cli user me` 应返回你自己的姓名 / 邮箱 / 所属企业。
 
@@ -74,7 +74,7 @@ wps365-cli auth login --device
 ### 打包分发（本地发版）
 
 ```bash
-node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.1.tgz + dist/SHA256SUMS（约 35KB）
+node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.0.tgz + dist/SHA256SUMS（约 35KB）
 ```
 
 产物已验证**自包含**：解包后可直接 `import`，15 个工具全部注册，不依赖工作区里的任何其它文件。
@@ -83,8 +83,8 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.1.tgz + dist/SHA25
 | 分发方式 | 成员侧安装命令 |
 |---------|---------------|
 | **内网 Git（推荐）** | `dsh plugin --profile desktop add git+https://内网/…/dsh-wps365.git` |
-| tarball | `dsh plugin --profile desktop add ./dist/local-dsh-wps365-1.2.1.tgz` |
-| 私有 npm | `dsh plugin --profile desktop add @your-scope/dsh-wps365@1.2.1` |
+| tarball | `dsh plugin --profile desktop add ./dist/cnbm-dsh-wps365-2.0.0.tgz` |
+| 私有 npm | `dsh plugin --profile desktop add @cnbm/dsh-wps365@2.0.0` |
 | 侧边栏 GUI | 插件 → 安装，粘贴上述任一地址 |
 
 包内只含 12 个文件：`index.js` / `client.js` / `lib/runner.js` / `lib/ui.js` / `lib/ui-page.js` /
@@ -95,7 +95,16 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.1.tgz + dist/SHA25
 `RELEASING.md` 是发版流程。工作区根目录的 `PLUGINS.md` 是本机插件索引，`plugin-docs/` 是「插件库」知识库的
 粘贴源（索引 + 手册），知识库不存二进制制品。`private: true` 保证不会被误发到公共 npm。
 
-安装成功后 Host 工具可经 HMR 立即出现；**但客户端面板（`client.js`）与源码改动需要完全退出并重开应用**才会加载新的 JS 模块。验证方式：侧栏出现「cnbm知识库」图标，或调用 `wps365_status`。
+> **从 v1.x 升级（v2.0.0 破坏性改名）**：旧包名 `@local/dsh-wps365`、旧工具 `wps365_*`、旧路由 `/wps365` 全部弃用。
+> 完全退出 DSH 后先移除旧包、再安装新包，然后重开应用：
+>
+> ```bash
+> dsh plugin --profile desktop remove @local/dsh-wps365
+> dsh plugin --profile desktop add ./dist/cnbm-dsh-wps365-2.0.0.tgz
+> # 或：dsh plugin --profile desktop add git+https://内网/…/dsh-wps365.git
+> ```
+
+安装成功后 Host 工具可经 HMR 立即出现；**但客户端面板（`client.js`）与源码改动需要完全退出并重开应用**才会加载新的 JS 模块。验证方式：侧栏出现「cnbm知识库」图标，或调用 `cnbm_status`。
 
 > `dsh` 可执行文件在 `DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh`，未加入 PATH；GUI 安装则用侧边栏插件页。
 > `plugin_manager` 工具仅在 **Creator 预设**启用，且预设切换只对新会话生效——已在运行的老会话工具集不会变。
@@ -107,10 +116,10 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.1.tgz + dist/SHA25
 | 入口 | 位置 | 说明 |
 |------|------|------|
 | **内嵌面板（推荐）** | 侧栏「cnbm知识库」图标 → 中央面板 | 与 Harness 一体，跟随深浅色主题；状态/登录、知识库钻取、搜索、正文阅读都在面板内完成 |
-| 独立页面（兜底） | `${GUI 同源地址}/wps365` | 自包含 HTML，无构建步骤，适合排障、深链或在没有面板的宿主里使用 |
+| 独立页面（兜底） | `${GUI 同源地址}/cnbm` | 自包含 HTML，无构建步骤，适合排障、深链或在没有面板的宿主里使用 |
 
 > 页面端口由 Harness 启动时动态分配（不再是固定 19387），请从当前 GUI 地址取同源路径，
-> 例如 `http://127.0.0.1:61978/wps365`。
+> 例如 `http://127.0.0.1:61978/cnbm`。
 
 | 区块 | 能力 |
 |------|------|
@@ -123,7 +132,7 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.1.tgz + dist/SHA25
 - **面板是 React 组件，不是 iframe**：注册在 `sidebar.panellist` + `main` 槽位，样式只用 `--dsw-alias-*` 主题 token；iframe 拿不到宿主主题、深浅色和语言，官方实践明确不推荐。
 - **同一份数据契约**：面板与 Agent 工具共用 `statusPayload` / 知识库操作，Panel 只是渲染层。
 - **零外部资源**：面板无构建步骤、无 CDN 依赖；独立页面 HTML/CSS/JS 全部内联。
-- **仅回环可访问**：校验 `Host` 与 `Origin`；面板/页面调用 `/wps365/api/*` 时还必须带 `x-dsh-wps365: 1` 自定义头，挡住跨站页面与裸 GET。
+- **仅回环可访问**：校验 `Host` 与 `Origin`；面板/页面调用 `/cnbm/api/*` 时还必须带 `x-dsh-cnbm: 1` 自定义头，挡住跨站页面与裸 GET。
 - **优雅降级**：若宿主没有 `webServer` 服务，只跳过独立页面，Agent 工具不受影响；Web 注册失败会被隔离并记一条 warning，不会连带回滚工具。
 
 ## 提供的工具
@@ -132,36 +141,36 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.1.tgz + dist/SHA25
 
 | 工具 | 作用 |
 |------|------|
-| `wps365_status` | 排障入口：CLI / 命令集 / 凭证 / 登录 / **已授予 scope** |
-| `wps365_login` | 发起设备码登录；**传 `scopes` 才能拿到权限**，不传只有空令牌 |
-| `wps365_logout` | 退出用户授权（保留应用凭证） |
-| `wps365_me` | 当前登录用户（需 `kso.user_base.read`） |
+| `cnbm_status` | 排障入口：CLI / 命令集 / 凭证 / 登录 / **已授予 scope** |
+| `cnbm_login` | 发起设备码登录；**传 `scopes` 才能拿到权限**，不传只有空令牌 |
+| `cnbm_logout` | 退出用户授权（保留应用凭证） |
+| `cnbm_me` | 当前登录用户（需 `kso.user_base.read`） |
 
 ### 知识库 wiki（4）— 需要 `kso.wiki.readwrite`
 
 | 工具 | 作用 |
 |------|------|
-| `wps365_wiki_spaces` | 列出可访问的知识库，拿 space-id |
-| `wps365_wiki_nodes` | 列知识库节点树（parent-id 用 `0` 表示根） |
-| `wps365_wiki_node_meta` | 单个节点的元信息 |
-| `wps365_wiki_search` | **按关键字搜索，返回正文高亮片段** |
-| `wps365_wiki_read` | **读完整正文（Markdown）**；自动把知识库节点 ID 解析为真实文件 ID，无需知道 drive-id |
+| `cnbm_wiki_spaces` | 列出可访问的知识库，拿 space-id |
+| `cnbm_wiki_nodes` | 列知识库节点树（parent-id 用 `0` 表示根） |
+| `cnbm_wiki_node_meta` | 单个节点的元信息 |
+| `cnbm_wiki_search` | **按关键字搜索，返回正文高亮片段** |
+| `cnbm_wiki_read` | **读完整正文（Markdown）**；自动把知识库节点 ID 解析为真实文件 ID，无需知道 drive-id |
 
 ### 云文档 drive（5）— 需要 `kso.drive.readwrite` / `kso.file.*`
 
 | 工具 | 作用 |
 |------|------|
-| `wps365_docs_drives` | 列出可访问的云盘 |
-| `wps365_docs_search` | 在授权范围内搜索文档 |
-| `wps365_docs_list` | 浏览云盘目录 |
-| `wps365_docs_read` | 抽取文档正文 |
-| `wps365_docs_download` | 获取下载地址（返回地址，非文件本体） |
+| `cnbm_docs_drives` | 列出可访问的云盘 |
+| `cnbm_docs_search` | 在授权范围内搜索文档 |
+| `cnbm_docs_list` | 浏览云盘目录 |
+| `cnbm_docs_read` | 抽取文档正文 |
+| `cnbm_docs_download` | 获取下载地址（返回地址，非文件本体） |
 
 ### 兜底（1）
 
 | 工具 | 作用 |
 |------|------|
-| `wps365_api` | 调用任意开放平台端点，默认只读 |
+| `cnbm_api` | 调用任意开放平台端点，默认只读 |
 
 > 所有工具在调用前会用令牌里的 `granted_scopes` 做**前置权限检查**：缺权限时直接告诉你缺哪个 scope、已授予哪些，而不是丢一个 403 出来。
 
@@ -170,7 +179,7 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.1.tgz + dist/SHA25
 在 profile 的 `cordis.patch.yml` 里按需覆盖：
 
 ```yaml
-- id: wps365
+- id: cnbm-knowledge
   config:
     cliPath: ''            # 留空按 WPS365_CLI → ~/.local/bin → PATH 探测
     configDir: ''          # 留空用 CLI 自身默认目录（推荐，与手工用 CLI 共享凭证）
@@ -186,26 +195,26 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.1.tgz + dist/SHA25
 | scope | 解锁能力 |
 |-------|---------|
 | `kso.wiki.readwrite` | 知识库 4 个工具（列表 / 节点树 / 元信息 / 搜索+高亮） |
-| `kso.user_base.read` | `wps365_me` |
+| `kso.user_base.read` | `cnbm_me` |
 | `kso.drive.readwrite`、`kso.file.read` | 云文档 5 个工具 |
 
 **只申请 wiki scope 也能用**——知识库搜索返回正文片段，足以回答内容性问题。
-**加上 `kso.file.read` 后**，`wps365_wiki_read` 可以读出完整正文（实测约 9.7K 字符的 Markdown，
+**加上 `kso.file.read` 后**，`cnbm_wiki_read` 可以读出完整正文（实测约 9.7K 字符的 Markdown，
 自动剥离 Word 目录域代码与控制字符）。
 
 > 知识库节点 ID（如 `cmTCLP53LuFd`）与真实文件 ID（如 `h3QF1FL...`）不是同一个。
-> `wps365_wiki_read` 内部先用 `/v7/files/{id}/meta` 换出 `drive_id` + 真实文件 ID，再读正文，调用方无需关心。
+> `cnbm_wiki_read` 内部先用 `/v7/files/{id}/meta` 换出 `drive_id` + 真实文件 ID，再读正文，调用方无需关心。
 
 ## 排障：7 种状态对应 7 种动作
 
-`wps365_status` 会明确报告处于哪种状态，避免"登录了但没数据"这类误判。
+`cnbm_status` 会明确报告处于哪种状态，避免"登录了但没数据"这类误判。
 
 | 状态 | 含义 | 下一步 |
 |------|------|--------|
 | `cli-missing` | 没装 wps365-cli | 执行第一步 |
 | `spec-unavailable` | 业务命令全部消失，`drive`/`user` 都不在 `--help` 里 | 配置目录不可写 → 设置 `configDir` 指向可写目录 |
 | `credentials-missing` | 没配 App ID / Secret | 执行第二步 |
-| `not-logged-in` | 没登录或已过期 | 调用 `wps365_login` |
+| `not-logged-in` | 没登录或已过期 | 调用 `cnbm_login` |
 | `logged-in` | 正常 | — |
 | `scope-missing` | 应用未开通权限 | 开放平台申请 scope → 发布 → 管理员审批 |
 | `entitlement-missing` | **企业套餐权益不足**（`403000001`） | 找管理员开通商业高级版 / 旗舰版；**不是 scope 问题** |
@@ -223,8 +232,8 @@ node scripts/release.mjs   # 产出 dist/local-dsh-wps365-1.2.1.tgz + dist/SHA25
 
 - 插件进程**从不接触 token**，所有请求由 CLI 带凭证发出。
 - `execFile` 参数数组调用，不做 shell 拼接。
-- 默认只读；写操作需要显式 `readOnly: false` + `allowWrite: true`，且 `wps365_api` 的写方法会被拦截。
-- 退出：`wps365_logout`；彻底清理：`wps365-cli auth clean --force`。
+- 默认只读；写操作需要显式 `readOnly: false` + `allowWrite: true`，且 `cnbm_api` 的写方法会被拦截。
+- 退出：`cnbm_logout`；彻底清理：`wps365-cli auth clean --force`。
 
 ## 开发与自测
 

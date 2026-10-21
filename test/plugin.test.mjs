@@ -54,7 +54,7 @@ function createFakeCtx() {
 
 /** 复制一份可用的 spec 缓存，避免测试反复走网络。 */
 async function makeConfigDir({ writable = true } = {}) {
-  const dir = await mkdtemp(path.join(tmpdir(), 'wps365-test-'))
+  const dir = await mkdtemp(path.join(tmpdir(), 'cnbm-test-'))
   if (writable) {
     await mkdir(path.join(dir, 'spec'), { recursive: true })
     for (const name of ['api.yaml', 'curated.yaml']) {
@@ -197,11 +197,11 @@ describe('插件装配', () => {
   it('注册了全部预期的工具且结构合法', () => {
     const names = [...ctx.inspect().keys()].sort()
     assert.deepEqual(names, [
-      'wps365_api', 'wps365_docs_download', 'wps365_docs_drives', 'wps365_docs_list',
-      'wps365_docs_read', 'wps365_docs_search', 'wps365_login', 'wps365_logout',
-      'wps365_me', 'wps365_status',
-      'wps365_wiki_node_meta', 'wps365_wiki_nodes', 'wps365_wiki_read', 'wps365_wiki_search',
-      'wps365_wiki_spaces',
+      'cnbm_api', 'cnbm_docs_download', 'cnbm_docs_drives', 'cnbm_docs_list',
+      'cnbm_docs_read', 'cnbm_docs_search', 'cnbm_login', 'cnbm_logout',
+      'cnbm_me', 'cnbm_status',
+      'cnbm_wiki_node_meta', 'cnbm_wiki_nodes', 'cnbm_wiki_read', 'cnbm_wiki_search',
+      'cnbm_wiki_spaces',
     ])
     for (const [name, def] of ctx.inspect()) {
       assert.equal(def.name, name)
@@ -213,8 +213,8 @@ describe('插件装配', () => {
     }
   })
 
-  it('wps365_status 端到端跑真实 CLI', async () => {
-    const def = ctx.inspect().get('wps365_status')
+  it('cnbm_status 端到端跑真实 CLI', async () => {
+    const def = ctx.inspect().get('cnbm_status')
     const text = await def.execute({}, { signal: new AbortController().signal })
     assert.match(text, /版本：wps365-cli version/)
     assert.match(text, /版本兼容（要求/)
@@ -222,8 +222,8 @@ describe('插件装配', () => {
     assert.match(text, /状态：(cli-missing|spec-unavailable|auth-status-unreadable|credentials-missing|not-logged-in|logged-in-but-scopeless|logged-in)/)
   })
 
-  it('wps365_me 要么返回用户信息，要么给出可执行指引——绝不抛错', async () => {
-    const def = ctx.inspect().get('wps365_me')
+  it('cnbm_me 要么返回用户信息，要么给出可执行指引——绝不抛错', async () => {
+    const def = ctx.inspect().get('cnbm_me')
     const text = String(await def.execute({}, { signal: new AbortController().signal }))
     assert.ok(text.length > 0)
     // 认证状态来自系统钥匙串（全局），因此这里只要求二者之一成立
@@ -233,21 +233,21 @@ describe('插件装配', () => {
   })
 
   it('未登录时写 API 在鉴权阶段就被拦下', async () => {
-    const def = ctx.inspect().get('wps365_api')
+    const def = ctx.inspect().get('cnbm_api')
     const text = await def.execute({ method: 'post', path: '/v7/x' }, { signal: new AbortController().signal })
     assert.match(text, /尚未登录|未配置应用凭证|只读模式|未授予所需权限/)
   })
 })
 
 describe('知识库（真实链路，未登录自动跳过）', () => {
-  it('wps365_wiki_spaces 能返回知识库列表', async () => {
+  it('cnbm_wiki_spaces 能返回知识库列表', async () => {
     const { apply } = await import('../index.js')
     const liveCtx = createFakeCtx()
     apply(liveCtx, { cliPath: LOCAL_CLI })
     try {
-      const def = liveCtx.inspect().get('wps365_wiki_spaces')
+      const def = liveCtx.inspect().get('cnbm_wiki_spaces')
       const text = await def.execute({}, { signal: new AbortController().signal })
-      if (/尚未登录|未授予|未配置|无法读取|operation not permitted|EPERM/.test(text)) {
+      if (/尚未登录|登录已过期|invalid_grant|未授予|未配置|无法读取|operation not permitted|EPERM/.test(text)) {
         console.log(`  # 跳过：${text.split('\n')[0]}`)
         return
       }
@@ -257,22 +257,22 @@ describe('知识库（真实链路，未登录自动跳过）', () => {
     }
   })
 
-  it('wps365_wiki_read 能读出清洗后的正文', async () => {
+  it('cnbm_wiki_read 能读出清洗后的正文', async () => {
     const { apply } = await import('../index.js')
     const liveCtx = createFakeCtx()
     apply(liveCtx, { cliPath: LOCAL_CLI })
     try {
       const tools = liveCtx.inspect()
-      const spacesText = await tools.get('wps365_wiki_spaces').execute({}, { signal: new AbortController().signal })
+      const spacesText = await tools.get('cnbm_wiki_spaces').execute({}, { signal: new AbortController().signal })
       const spaceId = spacesText.match(/space-id: (\S+)/)?.[1]
       if (!spaceId) { console.log('  # 跳过：没有可用知识库'); return }
-      const nodesText = await tools.get('wps365_wiki_nodes').execute(
+      const nodesText = await tools.get('cnbm_wiki_nodes').execute(
         { spaceId, parentId: '0' }, { signal: new AbortController().signal })
       const fileId = nodesText.match(/id: ([\w-]+)/)?.[1]
       if (!fileId) { console.log('  # 跳过：没有文档节点'); return }
-      const body = String(await tools.get('wps365_wiki_read').execute(
+      const body = String(await tools.get('cnbm_wiki_read').execute(
         { fileId }, { signal: new AbortController().signal }))
-      if (/未授予|尚未登录|没有返回正文|operation not permitted|EPERM/.test(body)) { console.log(`  # 跳过：${body.split('\n')[0]}`); return }
+      if (/登录已过期|invalid_grant|未授予|尚未登录|没有返回正文|operation not permitted|EPERM/.test(body)) { console.log(`  # 跳过：${body.split('\n')[0]}`); return }
       assert.ok(body.length > 200, '正文过短')
       assert.ok(!/HYPERLINK|PAGEREF/.test(body), '残留 Word 目录域代码')
       assert.ok(!/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(body), '残留控制字符')

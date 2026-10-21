@@ -36,13 +36,13 @@ function fakeRequire(name) {
 describe('Web 客户端面板', () => {
   it('以包名注册客户端模块', () => {
     assert.equal(loaded.length, 1)
-    assert.equal(loaded[0].id, '@local/dsh-wps365')
+    assert.equal(loaded[0].id, '@cnbm/dsh-wps365')
     assert.equal(typeof loaded[0].factory, 'function')
   })
 
   it('导出的插件对象与 Host 插件同名、只依赖 slots', () => {
     const plugin = loaded[0].factory(fakeRequire)
-    assert.equal(plugin.name, '@local/dsh-wps365')
+    assert.equal(plugin.name, '@cnbm/dsh-wps365')
     assert.deepEqual(plugin.inject, ['slots'])
     assert.equal(typeof plugin.apply, 'function')
   })
@@ -71,13 +71,13 @@ describe('Web 客户端面板', () => {
 
     const sidebar = registered.find((entry) => entry.definition.name === 'sidebar.panellist')
     assert.ok(sidebar, '应注册 sidebar.panellist')
-    assert.equal(sidebar.definition.id, 'wps365')
+    assert.equal(sidebar.definition.id, 'cnbm-knowledge')
     assert.equal(typeof sidebar.definition.label, 'function')
     assert.equal(typeof sidebar.component, 'function')
 
     const main = registered.find((entry) => entry.definition.name === 'main')
     assert.ok(main, '应注册 main')
-    assert.equal(main.definition.key, 'wps365')
+    assert.equal(main.definition.key, 'cnbm-knowledge')
     assert.equal(typeof main.component, 'function')
   })
 })

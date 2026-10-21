@@ -40,13 +40,13 @@ M1（插件骨架 + 鉴权工具）已落地，产物即本目录的 cordis bund
 
 **两个与原规划的偏差（有意为之）：**
 
-1. **暂不做 Client UI 面板。** 本会话的 standard 预设没有 `cordis_inspect_query`，我无法核对当前版本的 slot 注册参数与 props；也没有 `plugin_manager`，装不上就看不到渲染结果。写一个装不上、验不了的 UI 违反"先交付可用插件"原则。策略改为**Agent 驱动登录**：`wps365_login` 返回验证地址与用户码，用户在浏览器授权，`wps365_status` 确认。面板留到能安装/能验证时再补。
+1. **暂不做 Client UI 面板。** 本会话的 standard 预设没有 `cordis_inspect_query`，我无法核对当前版本的 slot 注册参数与 props；也没有 `plugin_manager`，装不上就看不到渲染结果。写一个装不上、验不了的 UI 违反"先交付可用插件"原则。策略改为**Agent 驱动登录**：`cnbm_login` 返回验证地址与用户码，用户在浏览器授权，`cnbm_status` 确认。面板留到能安装/能验证时再补。
 2. **不导出 `Config` schema。** 引入 `schemastery` 需要额外依赖解析，而 `apply(ctx, config)` 直接接收原始 config 已够用；配置项在 `cordis.patch.yml` 注释里说明。
 
 **尚未验证的部分（诚实标注）：**
 
 - 未在真实 DSH 中安装，**slot / 插件页渲染未验证**（本期无 UI，风险已规避）。
-- 未用真实企业账号跑 `auth login --device`，**设备码输出格式未实测**；因此 `wps365_login` 采取"原文透传 + 尽力提取 URL/用户码"的降级策略，而不是假定格式解析。
+- 未用真实企业账号跑 `auth login --device`，**设备码输出格式未实测**；因此 `cnbm_login` 采取"原文透传 + 尽力提取 URL/用户码"的降级策略，而不是假定格式解析。
 - `drive file-content get` 的返回体字段（`content` / `data.content`）未实测，读取工具做了多字段兜底。
 - `probeBusinessCommands` 与 `readAuthStatus` 已对真实二进制验证（含配置目录不可写的负例）。
 
@@ -57,11 +57,11 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 | 步骤 | 命令 | 结果 |
 |------|------|------|
 | 备份 | 复制 `package.json` / `cordis.patch.yml` 到 `.backup/` | 完成 |
-| 装包 | `dsh plugin --profile desktop add <本目录>` | `+ @local/dsh-wps365 link:...`，pnpm 锁文件校验通过 |
-| 选 bundle | **自动完成** | `dsh.profile.bundles` 末尾自动出现 `@local/dsh-wps365` |
-| 生效验证 | HMR 热更新 | 新的 `wps365_*` 工具注入会话工具集 = 硬证据 |
+| 装包 | `dsh plugin --profile desktop add <本目录>` | `+ @cnbm/dsh-wps365 link:...`，pnpm 锁文件校验通过 |
+| 选 bundle | **自动完成** | `dsh.profile.bundles` 末尾自动出现 `@cnbm/dsh-wps365` |
+| 生效验证 | HMR 热更新 | 新的 `cnbm_*` 工具注入会话工具集 = 硬证据 |
 | 装 CLI | 官方 install.sh | v0.3.6 → `~/.local/bin/wps365-cli`，SHA-256 校验通过 |
-| 端到端 | `wps365_status` | 正确报 `credentials-missing`（而非 `spec-unavailable`），说明业务命令集在宿主进程加载正常 |
+| 端到端 | `cnbm_status` | 正确报 `credentials-missing`（而非 `spec-unavailable`），说明业务命令集在宿主进程加载正常 |
 
 **三个新发现（已回写 README）：**
 
@@ -77,8 +77,8 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 
 | 测试 | 输出 | 结论 |
 |------|------|------|
-| `wps365_login`（无 scopes） | `invalid_scope: No allowed scopes remain after applying defaults for this client` | 默认 scope 与该应用允许集交集为空 |
-| `wps365_login --scopes kso.user_base.read` | `invalid_scope: The requested scope 'kso.user_base.read' is not allowed` | 该 scope 的 **user（delegated）** 权限未开通 |
+| `cnbm_login`（无 scopes） | `invalid_scope: No allowed scopes remain after applying defaults for this client` | 默认 scope 与该应用允许集交集为空 |
+| `cnbm_login --scopes kso.user_base.read` | `invalid_scope: The requested scope 'kso.user_base.read' is not allowed` | 该 scope 的 **user（delegated）** 权限未开通 |
 | `user me --token-type app` | `--token-type=app is incompatible with operation security` | 该端点仅支持用户身份，不能用于判别 app scope |
 | `auth token --app` | `no app token available` | 应用身份 token 也拿不到 |
 
@@ -98,10 +98,10 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 
 | 测试 | 结果 |
 |------|------|
-| `wps365_login`（无 scopes） | ✅ 成功，返回验证地址 `...user_code=RWBP-VCVZ` + 二维码，10 分钟内有效 |
+| `cnbm_login`（无 scopes） | ✅ 成功，返回验证地址 `...user_code=RWBP-VCVZ` + 二维码，10 分钟内有效 |
 | 用户浏览器授权 | ✅ 成功，`delegated: 可用（valid）`，`has_refresh: true` |
-| `wps365_me` | ❌ 403：`kso.user_base.read` 未授予 |
-| `wps365_docs_drives` | ❌ 403：需 `kso.drive.readwrite / mcp_yundoc / mcp_airpage` 之一 |
+| `cnbm_me` | ❌ 403：`kso.user_base.read` 未授予 |
+| `cnbm_docs_drives` | ❌ 403：需 `kso.drive.readwrite / mcp_yundoc / mcp_airpage` 之一 |
 | 逐个探测 9 个候选 scope | ❌ 全部 `not allowed` |
 | 解码 access token | 不透明串，仅含 `exp`，不携带 scope 信息 |
 | `--device` + `--dry-run` | 不支持，无法预览请求参数 |
@@ -119,7 +119,7 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 | `/v7/files/search` | `kso.file.search` 或 `kso.file_search.readwrite` |
 
 **待办（开放平台侧）：** 开通上述 scope 的 **user** 类型 → 创建版本发布 → 管理员审批 → 用
-`wps365_login --scopes "kso.user_base.read,kso.drive.readwrite,kso.file.read,kso.file.search"` 重新授权
+`cnbm_login --scopes "kso.user_base.read,kso.drive.readwrite,kso.file.read,kso.file.search"` 重新授权
 （已有令牌不会自动获得新 scope，必须重新登录）。
 
 ### 转折：只开通了知识库 scope（2026-10-19 三次复核）
@@ -129,7 +129,7 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 | 验证 | 结果 |
 |------|------|
 | `kso.wiki.readwrite` 探测 | ✅ ALLOWED |
-| `wps365_login --scopes kso.wiki.readwrite` | ✅ 成功，`Granted scopes: kso.wiki.readwrite`（已授权过的应用自动放行，无需再次点击） |
+| `cnbm_login --scopes kso.wiki.readwrite` | ✅ 成功，`Granted scopes: kso.wiki.readwrite`（已授权过的应用自动放行，无需再次点击） |
 | `GET /v7/wiki/spaces` | ✅ 返回 2 个知识库：信云智联企业知识库(`raJ2wEE`)、AI事业部知识库(`qdobkWP`) |
 | `GET /v7/wiki/spaces/qdobkWP/files/0/children` | ✅ 返回真实文档节点（含 id / 名称 / 大小 / 创建人） |
 | `POST /v7/wiki/search` | ✅ 返回命中文件 + **`file_content` 正文高亮片段** |
@@ -140,7 +140,7 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 
 **由此调整实现：**
 
-1. 新增 4 个知识库工具：`wps365_wiki_spaces` / `_nodes` / `_node_meta` / `_search`。
+1. 新增 4 个知识库工具：`cnbm_wiki_spaces` / `_nodes` / `_node_meta` / `_search`。
 2. 新增**基于 `granted_scopes` 的前置权限检查**（`checkScope`）：缺权限时直接说明缺哪个、已授予哪些，
    而不是等服务端返回 403。`granted_scopes` 在 `auth status` 里可读（`null` 表示未知，此时不拦截）。
 3. 状态工具新增 `logged-in-but-scopeless` 状态——登录成功但令牌零权限，这是实践中最容易被当成"成功"的假象。
@@ -157,20 +157,20 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 |------|------|
 | scope 探测 | ✅ `kso.user_base.read`、`kso.file.read` 均 ALLOWED |
 | 重新授权 | ✅ `Granted scopes: kso.file.read, kso.user_base.read, kso.wiki.readwrite` |
-| `wps365_me` | ✅ 返回 **李帅 / 企业 EPM2qA8** |
+| `cnbm_me` | ✅ 返回 **李帅 / 企业 EPM2qA8** |
 | `/v7/files/{id}/meta` | ✅ 返回 `drive_id` 与**真实文件 ID**（与知识库 link_id 不同） |
 | `/v7/drives/{drive}/files/{real}/content?format=markdown` | ✅ 返回完整正文 |
-| `wps365_wiki_read` | ✅ **9727 字符干净 Markdown**，无目录域代码、无控制字符 |
+| `cnbm_wiki_read` | ✅ **9727 字符干净 Markdown**，无目录域代码、无控制字符 |
 
 **三个关键实现细节：**
 
 1. **知识库节点 ID ≠ 真实文件 ID。** 节点 `cmTCLP53LuFd` 对应的真实文件是
    `h3QF1FLnmxMDNt8ztQtX1xddiZfKznFz1`，`drive_id` 要从 `/v7/files/{id}/meta` 换出来。
-   `wps365_wiki_read` 把这两步封装掉，调用方只传节点 ID。
+   `cnbm_wiki_read` 把这两步封装掉，调用方只传节点 ID。
 2. **WPS 导出的 markdown/plain 都带 Word 目录域代码**（`TOC \o ... HYPERLINK \l _Toc... PAGEREF`）。
    不清洗会污染上下文，实测清洗后从"一堆控制字符 + 书签"变成可读的层级文档。
 3. **正文格式用 `format=markdown`**（spec 里枚举为 `kdc/plain/markdown/html`）。
-   `wps365_docs_read` 与 `wps365_wiki_read` 共用同一条 `readDocumentBody` 链路。
+   `cnbm_docs_read` 与 `cnbm_wiki_read` 共用同一条 `readDocumentBody` 链路。
 
 **最终工具集（15 个）：** 环境身份 4 + 知识库 5 + 云文档 5 + 兜底 1。
 测试 26 项全绿，其中 2 项为真实账号端到端用例（知识库列表、正文读取）。
@@ -192,13 +192,13 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 原计划做 Client slot 面板，但本会话缺少 `cordis_inspect_query` / `plugin_manager`，
 无法核对 slot 注册契约。改用生态内的通行做法绕开这个阻塞：
 
-**通过 `ctx.webServer.register({ kind:'prefix', path:'/wps365', handler })` 注册同源页面。**
+**通过 `ctx.webServer.register({ kind:'prefix', path:'/cnbm', handler })` 注册同源页面。**
 `dsh-knowledge` 的管理台就是同一机制，因此这是被验证过的路径，不需要 slot 检查工具。
 
 | 项 | 实现 |
 |----|------|
 | 页面 | `lib/ui-page.js`，14.6KB 自包含 HTML（全内联，**零外部资源**） |
-| 路由 | `lib/ui.js`，注册 `/wps365` + 6 个 API 端点 |
+| 路由 | `lib/ui.js`，注册 `/cnbm` + 6 个 API 端点 |
 | 数据 | 与 Agent 工具**共用** `statusPayload` / `apiCall` / `resolveFileIdentity` / `readDocumentBody` |
 | 安全 | 仅回环可访问：校验 `Host` 与 `Origin`，非本机返回 403 |
 | 降级 | 宿主无 `webServer` 服务时只跳过 UI，Agent 工具不受影响 |
@@ -208,7 +208,7 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 
 | 端点 | 结果 |
 |------|------|
-| `GET /wps365` | 200，14,664 字符，外部资源引用：无 |
+| `GET /cnbm` | 200，14,664 字符，外部资源引用：无 |
 | `GET /api/status` | 200，`state=logged-in`，CLI 0.3.6，3 个 scope |
 | `GET /api/spaces` | 200，返回 2 个真实知识库 |
 | `GET /api/nodes` | 200，返回 3 篇真实文档（含 ID/大小） |
@@ -218,14 +218,14 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 
 **验证中发现并修复的一个真实 bug**：`/v7/wiki/search` 的 `page_size` 是**必填**项，
 缺省返回 `400408021 参数无效: ('PageSize':'required')`。该缺陷同时存在于 Agent 工具
-（`wps365_wiki_search`）与 UI 中，因为此前测试恰好都传了 `pageSize` 而未暴露。
+（`cnbm_wiki_search`）与 UI 中，因为此前测试恰好都传了 `pageSize` 而未暴露。
 现两处均补默认值 20。
 
 **测试**：37 项（26 插件 + 11 UI 路由）。UI 测试覆盖：页面自包含性、6 个端点、
 非法 ID 拒绝、404/405、Host/Origin 防护。
 
 **未验证**：页面在浏览器中的**视觉渲染**（无浏览器控制能力）。HTTP 层与 HTML 结构已验证，
-样式与交互需人工打开 `http://127.0.0.1:19387/wps365` 确认。
+样式与交互需人工打开 `http://127.0.0.1:19387/cnbm` 确认。
 
 ### M4 完成：Harness 内嵌面板（v1.2.0，2026-10-20）
 
@@ -239,21 +239,48 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 | 客户端半 | 新增 `client.js`（约 500 行，React 无构建），`window.__ModuleLoader__.load({ id: 包名 })` |
 | 清单 | `package.json` 增加 `exports["./client"]`、`files` 含 `client.js`、`dsh.client = { platform: "web", immediately: true }` |
 | 槽位 | `sidebar.panellist`（id `wps365`，order 50，label thunk）+ `main`（key `wps365`），图标复用 `icon.svg` 造型 |
-| 数据 | 复用已有的 `/wps365/api/*` 同源 JSON 接口；面板与页面都不新增 Host 业务逻辑 |
+| 数据 | 复用已有的 `/cnbm/api/*` 同源 JSON 接口；面板与页面都不新增 Host 业务逻辑 |
 | 样式 | 只使用 `--dsw-alias-*` 主题 token；不再依赖 `prefers-color-scheme`，跟随宿主深浅色 |
-| 防 CSRF | API 额外要求 `x-dsh-wps365: 1` 请求头；页面与面板都带上；Host/Origin 回环校验保留 |
+| 防 CSRF | API 额外要求 `x-dsh-cnbm: 1` 请求头；页面与面板都带上；Host/Origin 回环校验保留 |
 | 隔离 | Host 侧改用 `ctx.get('webServer')`；UI 注册整体 `try/catch`，失败只记 warning，不再连带回滚 15 个工具 |
-| 保留 | 独立页面 `/wps365` 继续作为兜底/深链入口，不再写死端口 |
+| 保留 | 独立页面 `/cnbm` 继续作为兜底/深链入口，不再写死端口 |
 
 **验证**：
 
 - `node --test test/`：42 项全绿（新增 `test/client.test.mjs` 3 项 + API 缺头 403 等 2 项）。
-- 真实 Cordis 4.0.5 激活冒烟：提供假 `webServer` 时 15 工具 + `/wps365` 路由均注册；
+- 真实 Cordis 4.0.5 激活冒烟：提供假 `webServer` 时 15 工具 + `/cnbm` 路由均注册；
   `webServer.register` 抛错时工具仍保留、只打 warning；无 `webServer` 时纯工具模式正常。
 - 面板在浏览器里的视觉与交互需重启应用后人工确认（Client 模块不会热重载）。
 
 **未做（后续）**：面板文案暂为中文（未接 Client locale）；无退出登录按钮；未导出 `Config` schema，
 配置仍需改 `cordis.patch.yml`；未做「面板 ↔ 会话」联动（把文档引用进对话）。
+
+### M5：技术标识统一为 cnbm（v2.0.0，2026-10-21）
+
+用户要求包名、工具名也统一改成 `cnbm` 前缀（此前只改了显示名）。这是一次**破坏性迁移**：
+
+| 项 | v1.x | v2.0.0 |
+|----|------|--------|
+| 包名 | `@local/dsh-wps365` | `@cnbm/dsh-wps365` |
+| Host 插件行 / 侧栏与面板 key | `wps365` / `wps365` | `cnbm-knowledge` |
+| 工具名 | `wps365_*`（15 个） | `cnbm_*`（15 个，后缀不变） |
+| 同源路由 | `/wps365/api/*` | `/cnbm/api/*` |
+| 请求头 | `x-dsh-wps365: 1` | `x-dsh-cnbm: 1` |
+| 客户端模块 id | `@local/dsh-wps365` | `@cnbm/dsh-wps365`（等于包名） |
+| 安装包 | `local-dsh-wps365-<v>.tgz` | `cnbm-dsh-wps365-<v>.tgz` |
+
+保留不动：`wps365-cli`（官方 CLI 名称）、`WPS365_CLI` 环境变量、`wps365-plugin/` 目录名、
+内网 Git 仓库占位地址 `dsh-wps365.git`、scope 名称与 WPS 平台端点。
+
+**升级方式（必须重装，不能热更新）**：完全退出 DSH 后
+
+```bash
+dsh plugin --profile desktop remove @local/dsh-wps365
+dsh plugin --profile desktop add /Users/liangli/Documents/deepseek-harness/default-workspace/wps365-plugin
+```
+
+再重开应用。旧会话里的 `wps365_*` 调用会失效，新工具为 `cnbm_*`；旧 `/wps365` 页面不再注册。
+真实链路测试曾出现 `invalid_grant`（refresh token 过期），升级后需重新执行一次 `cnbm_login`。
 
 
 
@@ -315,8 +342,8 @@ M1 已装进本机 `desktop` profile 并且**在真实 DSH 中生效**。
 
 - 你给的链接 <https://365.kdocs.cn/l/cqi8RexYzQKD?source=wiki> 需要 WPS 登录后才能查看，匿名抓取会被重定向到 `passport/singlesign`，因此**其内容我没有读到**。
 - 以下结论来自同一体系的公开资料：
-  - [WPS365 CLI README](https://raw.githubusercontent.com/wps365-open/cli/master/README.md)（官方开源仓库，MIT）
-  - [前置准备：创建应用与权限配置](https://raw.githubusercontent.com/wps365-open/cli/master/docs/prerequisites.md)
+  - [WPS365 CLI README](https://raw.githubusercontent.com/cnbm-open/cli/master/README.md)（官方开源仓库，MIT）
+  - [前置准备：创建应用与权限配置](https://raw.githubusercontent.com/cnbm-open/cli/master/docs/prerequisites.md)
   - WPS 365 官方 MCP 平台：`https://openapi.wps.cn/mcp/v2/{service}/message`
 - **待你确认**：wiki 里的指南是否就是这份 CLI 指南；若是另一套（比如自家企业封装版）请贴关键段落。
 
@@ -574,7 +601,7 @@ Host 插件遵守的规则（来自 Harness 插件开发约定）：
 ### 5.2 日常调用（每次工具调用）
 
 ```
-Agent: wps365_docs_search(keyword="季度报告")
+Agent: cnbm_docs_search(keyword="季度报告")
   → Runner 执行: wps365-cli -o json drive file search --keyword "季度报告"
   → CLI: 读钥匙串 token → 快过期则刷新 → 注入 Bearer → 请求
   → 服务端按 (用户权限 ∩ app scope ∩ 可用范围) 过滤
@@ -588,41 +615,41 @@ Agent: wps365_docs_search(keyword="季度报告")
 
 ## 6. 工具设计（Agent 能力清单）
 
-统一前缀 `wps365_`，分三层：
+统一前缀 `cnbm_`，分三层：
 
 ### 6.1 环境与身份层
 
 | 工具 | 作用 |
 |------|------|
-| `wps365_status` | CLI 是否安装、是否配置凭证、是否登录、过期时间、认证模式、版本 |
-| `wps365_login` | 发起设备码登录，返回 user_code + URL（二维码由面板渲染） |
-| `wps365_logout` | 退出当前用户授权（保留凭证） |
-| `wps365_me` | 当前登录用户信息（姓名/邮箱/部门） |
+| `cnbm_status` | CLI 是否安装、是否配置凭证、是否登录、过期时间、认证模式、版本 |
+| `cnbm_login` | 发起设备码登录，返回 user_code + URL（二维码由面板渲染） |
+| `cnbm_logout` | 退出当前用户授权（保留凭证） |
+| `cnbm_me` | 当前登录用户信息（姓名/邮箱/部门） |
 
 ### 6.2 内容层（云文档，命令已实测对齐）
 
 | 工具 | 实际执行命令 |
 |------|-------------|
-| `wps365_docs_drives` | `drive list --allotee-type user --page-size N` |
-| `wps365_docs_search` | `drive file search --keyword K --type all --page-size N [--drive-ids ...]` |
-| `wps365_docs_list` | `drive file list <drive-id> <parent-id> --page-size N [--filter-type ...]` |
-| `wps365_docs_doclib` | `drive doclib list` / `drive doclib get <id>` |
-| `wps365_docs_read` | `drive file-content get <drive-id> <file-id> [--format ...]` ← **核心** |
-| `wps365_docs_download` | `drive file download <drive-id> <file-id>` 取地址 → 再由 Host 走 HTTP 下载到工作区 |
-| `wps365_docs_recent` | `drive recent-file`（另有 `starred-file` / `frequent-file`） |
-| `wps365_docs_link` | `drive link ...`（分享链接） |
+| `cnbm_docs_drives` | `drive list --allotee-type user --page-size N` |
+| `cnbm_docs_search` | `drive file search --keyword K --type all --page-size N [--drive-ids ...]` |
+| `cnbm_docs_list` | `drive file list <drive-id> <parent-id> --page-size N [--filter-type ...]` |
+| `cnbm_docs_doclib` | `drive doclib list` / `drive doclib get <id>` |
+| `cnbm_docs_read` | `drive file-content get <drive-id> <file-id> [--format ...]` ← **核心** |
+| `cnbm_docs_download` | `drive file download <drive-id> <file-id>` 取地址 → 再由 Host 走 HTTP 下载到工作区 |
+| `cnbm_docs_recent` | `drive recent-file`（另有 `starred-file` / `frequent-file`） |
+| `cnbm_docs_link` | `drive link ...`（分享链接） |
 
 所有工具统一追加 `-o json`，并透传 `--token-type delegated`（默认即是）。
 
-后续按需扩：`wps365_calendar_*`、`wps365_mail_*`、`wps365_im_*`、`wps365_dbsheet_*`、`wps365_meeting_*`。
+后续按需扩：`cnbm_calendar_*`、`cnbm_mail_*`、`cnbm_im_*`、`cnbm_dbsheet_*`、`cnbm_meeting_*`。
 
 ### 6.3 兜底层
 
 | 工具 | 作用 |
 |------|------|
-| `wps365_api` | 通用端点调用，参数 `{ method, path, data }`。默认限制在 `GET`；写方法需显式 `Config.allowWrite` 或用户确认 |
+| `cnbm_api` | 通用端点调用，参数 `{ method, path, data }`。默认限制在 `GET`；写方法需显式 `Config.allowWrite` 或用户确认 |
 
-**工具描述里写明所需 scope**（例如 `wps365_docs_read` 需要 `kso.yundoc.read` 之类），这样 Agent 在失败时能自动给出正确的申请指引。
+**工具描述里写明所需 scope**（例如 `cnbm_docs_read` 需要 `kso.yundoc.read` 之类），这样 Agent 在失败时能自动给出正确的申请指引。
 
 ---
 
@@ -652,7 +679,7 @@ UI 与 Agent 工具**复用同一个 Host 服务方法**（一份实现两个调
 | 最小权限 | 工具默认只读；写操作需显式配置 + 用户确认 |
 | 越权 | 不实现任何重试/降级绕过 403 的逻辑 |
 | 数据外发 | 内容进入模型上下文即离开本机——企业内使用需确认合规（这点要向管理员讲清） |
-| 退出 | 提供 `wps365_logout`；文档说明如何 `auth clean` 彻底清理 |
+| 退出 | 提供 `cnbm_logout`；文档说明如何 `auth clean` 彻底清理 |
 | 审计 | 每次调用在 DSH 会话日志中留痕（工具名 + 参数），与 WPS 侧服务端日志可对照 |
 
 ---
@@ -662,7 +689,7 @@ UI 与 Agent 工具**复用同一个 Host 服务方法**（一份实现两个调
 | 阶段 | 内容 | 验收标准（可观测） |
 |------|------|-------------------|
 | **M0 环境准备** | 装 CLI、建/绑应用、申请 scope、管理员审批 | `wps365-cli user me` 返回真实用户；目标 scope 状态为"已开通" |
-| **M1 插件骨架 + 鉴权** | bundle 打包、Runner、`wps365_status/login/logout/me`、错误映射 | 面板显示正确登录状态；未登录时工具返回可执行指引；杀掉 CLI 后显示"未安装" |
+| **M1 插件骨架 + 鉴权** | bundle 打包、Runner、`cnbm_status/login/logout/me`、错误映射 | 面板显示正确登录状态；未登录时工具返回可执行指引；杀掉 CLI 后显示"未安装" |
 | **M2 内容工具** | 云文档搜索/列表/正文/下载 | 用真实账号搜到并读到一篇自己有权限的文档；换一个无权限文档 → 返回明确的权限指引而非裸错误 |
 | **M3 UI 面板** | 状态卡片 + 设备码 + 二维码 + 能力自检 | 从"未登录"到"已登录"全程在面板内完成，不需要手动敲命令；深浅色主题下与宿主一致 |
 | **M4 扩展** | 日历/邮件/IM/多维表；可选 MCP 桥；写操作开关 | 每个新增域都有对应的只读工具 + 独立验收 |
@@ -812,13 +839,13 @@ export function apply(ctx, config) {
   const runner = createRunner(ctx, config)   // 唯一的 CLI 出口
 
   ctx.effect(() => ctx.tools.register({
-    name: 'wps365_status',
+    name: 'cnbm_status',
     description: '检查 wps365-cli 安装/凭证/登录状态及其过期时间。',
     parameters: { type: 'object', properties: {}, additionalProperties: false },
     async execute() { return runner.status() },
   }))
 
-  // wps365_me / wps365_login / wps365_docs_search … 同形
+  // cnbm_me / cnbm_login / cnbm_docs_search … 同形
 }
 ```
 
