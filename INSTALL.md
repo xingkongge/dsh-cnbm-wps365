@@ -7,9 +7,9 @@ WPS 后台授权决定（应用 scope ∩ 可用范围 ∩ 个人权限）。
 |---|---|
 | 插件显示名 | cnbm知识库 |
 | 插件包名 | `@cnbm/dsh-wps365`（技术标识不变） |
-| 当前版本 | `2.0.0` |
-| 安装包 | `dist/cnbm-dsh-wps365-2.0.0.tgz`（35,497 字节） |
-| SHA-256 | `c9b2a1e363cd956b318c0188809d50c148a4d36933eb6179d4f01e69040faec5` |
+| 当前版本 | `2.0.1` |
+| 安装包 | `dist/cnbm-dsh-wps365-2.0.1.tgz`（36,739 字节） |
+| SHA-256 | `da2cd11d3bcd80025c640b71612f151d23c871d76e6b24f393b58048e948aabb` |
 | 适用环境 | DeepSeek Harness 0.2.x（desktop profile） |
 | 依赖 | 官方 `wps365-cli` ≥ 0.3.6 |
 
@@ -50,23 +50,23 @@ dsh plugin --profile desktop add git+https://<内网Git地址>/dsh-wps365.git
 
 ### 方式 B：安装包（tarball）
 
-从内网 Git 的 Release 附件（或内网文件盘）取得 `cnbm-dsh-wps365-2.0.0.tgz`，先校验：
+从内网 Git 的 Release 附件（或内网文件盘）取得 `cnbm-dsh-wps365-2.0.1.tgz`，先校验：
 
 ```bash
-shasum -a 256 cnbm-dsh-wps365-2.0.0.tgz
-# 应为 c9b2a1e363cd956b318c0188809d50c148a4d36933eb6179d4f01e69040faec5
+shasum -a 256 cnbm-dsh-wps365-2.0.1.tgz
+# 应为 da2cd11d3bcd80025c640b71612f151d23c871d76e6b24f393b58048e948aabb
 ```
 
 然后安装：
 
 ```bash
-dsh plugin --profile desktop add ./cnbm-dsh-wps365-2.0.0.tgz
+dsh plugin --profile desktop add ./cnbm-dsh-wps365-2.0.1.tgz
 ```
 
 ### 方式 C：私有 npm 源
 
 ```bash
-dsh plugin --profile desktop add @cnbm/dsh-wps365@2.0.0
+dsh plugin --profile desktop add @cnbm/dsh-wps365@2.0.1
 ```
 
 安装完成后**完全退出并重开 DeepSeek Harness**（Host 工具可热更新，客户端面板与源码必须重启才加载）。
@@ -112,6 +112,9 @@ wps365-cli user me     # 应返回你的姓名 / 企业
 
 ## 七、排障（状态 → 动作）
 
+> 面板/页面里如果状态徽章变成「登录已过期」，直接点「重新登录」（或「登录 WPS」）即可重新走设备码授权，
+> 不需要先退出登录；重新授权会沿用当前已授予的 scope。
+
 | 状态 | 含义 | 下一步 |
 |---|---|---|
 | `cli-missing` | 没装 wps365-cli | 执行第二步 |
@@ -131,7 +134,7 @@ wps365-cli user me     # 应返回你的姓名 / 企业
 >
 > ```bash
 > dsh plugin --profile desktop remove @local/dsh-wps365
-> dsh plugin --profile desktop add ./cnbm-dsh-wps365-2.0.0.tgz
+> dsh plugin --profile desktop add ./cnbm-dsh-wps365-2.0.1.tgz
 > # 或：dsh plugin --profile desktop add git+https://<内网Git地址>/dsh-wps365.git
 > ```
 

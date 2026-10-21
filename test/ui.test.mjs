@@ -103,6 +103,8 @@ describe('Web 控制台', () => {
     // 自包含：不应引用任何外部脚本/样式
     assert.ok(!/<script[^>]+src=/.test(res.body), '不应有外部脚本')
     assert.ok(!/<link[^>]+href=/.test(res.body), '不应有外部样式')
+    // 页面必须始终提供重新登录入口（授权过期时无法回到登录态）
+    assert.match(res.body, /重新登录/)
   })
 
   it('结尾斜杠也返回页面', async () => {

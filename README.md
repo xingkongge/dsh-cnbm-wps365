@@ -74,7 +74,7 @@ wps365-cli auth login --device
 ### 打包分发（本地发版）
 
 ```bash
-node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.0.tgz + dist/SHA256SUMS（约 35KB）
+node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.1.tgz + dist/SHA256SUMS（约 35KB）
 ```
 
 产物已验证**自包含**：解包后可直接 `import`，15 个工具全部注册，不依赖工作区里的任何其它文件。
@@ -83,8 +83,8 @@ node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.0.tgz + dist/SHA256
 | 分发方式 | 成员侧安装命令 |
 |---------|---------------|
 | **内网 Git（推荐）** | `dsh plugin --profile desktop add git+https://内网/…/dsh-wps365.git` |
-| tarball | `dsh plugin --profile desktop add ./dist/cnbm-dsh-wps365-2.0.0.tgz` |
-| 私有 npm | `dsh plugin --profile desktop add @cnbm/dsh-wps365@2.0.0` |
+| tarball | `dsh plugin --profile desktop add ./dist/cnbm-dsh-wps365-2.0.1.tgz` |
+| 私有 npm | `dsh plugin --profile desktop add @cnbm/dsh-wps365@2.0.1` |
 | 侧边栏 GUI | 插件 → 安装，粘贴上述任一地址 |
 
 包内只含 12 个文件：`index.js` / `client.js` / `lib/runner.js` / `lib/ui.js` / `lib/ui-page.js` /
@@ -100,7 +100,7 @@ node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.0.tgz + dist/SHA256
 >
 > ```bash
 > dsh plugin --profile desktop remove @local/dsh-wps365
-> dsh plugin --profile desktop add ./dist/cnbm-dsh-wps365-2.0.0.tgz
+> dsh plugin --profile desktop add ./dist/cnbm-dsh-wps365-2.0.1.tgz
 > # 或：dsh plugin --profile desktop add git+https://内网/…/dsh-wps365.git
 > ```
 
@@ -123,7 +123,7 @@ node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.0.tgz + dist/SHA256
 
 | 区块 | 能力 |
 |------|------|
-| 状态卡 | 登录状态徽章、CLI 版本与兼容性、已授予 scope 列表、一键登录并自动轮询结果 |
+| 状态卡 | 登录状态徽章、CLI 版本与兼容性、已授予 scope 列表；**始终提供「登录 / 重新登录」**，令牌过期可原地重新授权并自动轮询结果 |
 | 知识库 | 知识库列表 → 节点树钻取（面包屑/返回上级）→ 点文档读正文 |
 | 搜索 | 关键字搜索，结果带正文高亮片段，可直接「读正文」 |
 

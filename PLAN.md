@@ -282,6 +282,20 @@ dsh plugin --profile desktop add /Users/liangli/Documents/deepseek-harness/defau
 再重开应用。旧会话里的 `wps365_*` 调用会失效，新工具为 `cnbm_*`；旧 `/wps365` 页面不再注册。
 真实链路测试曾出现 `invalid_grant`（refresh token 过期），升级后需重新执行一次 `cnbm_login`。
 
+### M6：授权过期可重新登录（v2.0.1，2026-10-21）
+
+现场问题：令牌 refresh 失败（`invalid_grant`）时，`auth status` 仍报 `delegated.available`，面板显示「已登录」，
+登录按钮被隐藏，用户没有任何入口重新授权。
+
+修复：
+
+- 面板/页面识别 `登录已过期|invalid_grant|401` 等真实调用失败，自动把状态切换为「登录已过期」并提示重新登录；
+- 登录按钮改为**始终可用**（未登录=「登录 WPS」，已登录=「重新登录」，CLI/凭证缺失时除外）；
+- 重新登录时沿用当前 `grantedScopes`（无历史时用团队默认 scope 集），避免拿到空令牌；
+- 登录轮询改为「真实读取一次知识库」判断是否完成，不再只依赖 `status.state === 'logged-in'`；
+- 独立页面做同样处理。
+
+
 
 
 

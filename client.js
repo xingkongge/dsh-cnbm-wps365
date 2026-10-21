@@ -96,6 +96,14 @@ window.__ModuleLoader__.load({
       return String(text == null ? '' : text).replace(/<\/?em>/gi, '')
     }
 
+    /** auth status 仍显示“已登录”，但真正调用时 refresh token 已失效。 */
+    function isExpiredText(text) {
+      return /登录已过期|invalid_grant|401 Unauthorized|refresh token/i.test(String(text || ''))
+    }
+
+    /** 首次登录没有历史 scope 时使用团队默认申请集。 */
+    const DEFAULT_SCOPES = ['kso.wiki.readwrite', 'kso.user_base.read', 'kso.file.read']
+
     const STATE_LABEL = {
       'logged-in': ['已登录', 'ok'],
       'logged-in-but-scopeless': ['已登录但无权限', 'warn'],
@@ -137,12 +145,14 @@ window.__ModuleLoader__.load({
       const [search, setSearch] = React.useState(null)
       const [login, setLogin] = React.useState(null)
       const [busy, setBusy] = React.useState(false)
+      const [expired, setExpired] = React.useState(false)
 
       const loadStatus = React.useCallback(async () => {
         try {
           const next = await api('status')
           setStatus(next)
           setStatusError('')
+          if (next && next.state !== 'logged-in') setExpired(false)
           return next
         } catch (error) {
           setStatusError(String((error && error.message) || error))
@@ -156,11 +166,15 @@ window.__ModuleLoader__.load({
           if (result.ok) {
             setSpaces(result.data || [])
             setListError('')
+            setExpired(false)
           } else {
             setListError(result.error || '读取知识库失败')
+            if (isExpiredText(result.error)) setExpired(true)
           }
         } catch (error) {
-          setListError(String((error && error.message) || error))
+          const message = String((error && error.message) || error)
+          setListError(message)
+          if (isExpiredText(message)) setExpired(true)
         }
       }, [])
 
@@ -171,13 +185,17 @@ window.__ModuleLoader__.load({
           if (result.ok) {
             setNodes(result.data || [])
             setListError('')
+            setExpired(false)
           } else {
             setNodes([])
             setListError(result.error || '读取目录失败')
+            if (isExpiredText(result.error)) setExpired(true)
           }
         } catch (error) {
+          const message = String((error && error.message) || error)
           setNodes([])
-          setListError(String((error && error.message) || error))
+          setListError(message)
+          if (isExpiredText(message)) setExpired(true)
         } finally {
           setListLoading(false)
         }
@@ -191,15 +209,25 @@ window.__ModuleLoader__.load({
         if (canBrowse) void loadSpaces()
       }, [canBrowse, loadSpaces])
 
-      // 发起登录后轮询状态；授权是异步人机动作，面板不阻塞。
+      // 发起登录后轮询：用一次真实读取判断授权是否完成。
+      // 不能只看 status.state === 'logged-in'——过期令牌下 auth status 仍会这样报告。
       const loginPending = !!(login && login.pending)
       React.useEffect(() => {
         if (!loginPending) return undefined
         const timer = setInterval(async () => {
-          const next = await loadStatus()
-          if (next && next.state === 'logged-in') {
+          const result = await api('spaces')
+          if (result.ok) {
             setLogin(null)
-            void loadSpaces()
+            setExpired(false)
+            await loadStatus()
+            await loadSpaces()
+            return
+          }
+          const message = String(result.error || '')
+          const stillWaiting = isExpiredText(message) || /尚未登录|未登录/.test(message)
+          if (!stillWaiting) {
+            setLogin((prev) => (prev ? Object.assign({}, prev, { pending: false, error: message || '授权已完成，但读取知识库失败' }) : prev))
+            await loadStatus()
           }
         }, 3000)
         const expiry = setTimeout(() => {
@@ -211,7 +239,11 @@ window.__ModuleLoader__.load({
       async function startLogin() {
         setBusy(true)
         try {
-          const result = await api('login', { method: 'POST' })
+          const scopes = (status && status.grantedScopes && status.grantedScopes.length)
+            ? status.grantedScopes
+            : DEFAULT_SCOPES
+          const query = scopes.length ? '?scopes=' + encodeURIComponent(scopes.join(',')) : ''
+          const result = await api('login' + query, { method: 'POST' })
           if (!result.ok) {
             setLogin({ pending: false, error: result.error || '发起登录失败' })
           } else {
@@ -255,9 +287,13 @@ window.__ModuleLoader__.load({
         setReader({ title: name || '正文', text: '读取中…', error: '' })
         try {
           const result = await api('read?fileId=' + encodeURIComponent(id))
-          setReader({ title: name || '正文', text: result.ok ? result.text : '', error: result.ok ? '' : (result.error || '读取失败') })
+          const failure = result.ok ? '' : (result.error || '读取失败')
+          setReader({ title: name || '正文', text: result.ok ? result.text : '', error: failure })
+          if (isExpiredText(failure)) setExpired(true)
         } catch (error) {
-          setReader({ title: name || '正文', text: '', error: String((error && error.message) || error) })
+          const message = String((error && error.message) || error)
+          setReader({ title: name || '正文', text: '', error: message })
+          if (isExpiredText(message)) setExpired(true)
         }
       }
 
@@ -276,9 +312,13 @@ window.__ModuleLoader__.load({
             return
           }
           const result = await api('search?keyword=' + encodeURIComponent(query) + '&spaceIds=' + encodeURIComponent(ids))
-          setSearch({ loading: false, items: result.ok ? (result.data || []) : [], error: result.ok ? '' : (result.error || '搜索失败') })
+          const failure = result.ok ? '' : (result.error || '搜索失败')
+          setSearch({ loading: false, items: result.ok ? (result.data || []) : [], error: failure })
+          if (isExpiredText(failure)) setExpired(true)
         } catch (error) {
-          setSearch({ loading: false, items: [], error: String((error && error.message) || error) })
+          const message = String((error && error.message) || error)
+          setSearch({ loading: false, items: [], error: message })
+          if (isExpiredText(message)) setExpired(true)
         }
       }
 
@@ -302,11 +342,15 @@ window.__ModuleLoader__.load({
           return h('section', { className: 'cnbm-card' },
             h('span', { className: 'cnbm-badge warn' }, '检查中…'))
         }
-        const hit = STATE_LABEL[status.state] || [status.state || '未知', 'warn']
+        let hit = STATE_LABEL[status.state] || [status.state || '未知', 'warn']
+        if (expired) hit = ['登录已过期', 'warn']
         const loggedIn = status.state === 'logged-in'
         const scopes = status.grantedScopes || []
         let hint = ''
-        if (status.state === 'cli-missing') {
+        if (expired) {
+          hint = h('div', { className: 'cnbm-hint' },
+            '授权已过期，点「重新登录」用同一个企业账号重新授权；现有 scope 会一并带上。')
+        } else if (status.state === 'cli-missing') {
           hint = h('div', { className: 'cnbm-hint' }, '安装：',
             h('code', null, 'curl -fsSL https://open-docs.wpscdn.cn/cli/install.sh | bash'))
         } else if (status.state === 'credentials-missing') {
@@ -324,10 +368,10 @@ window.__ModuleLoader__.load({
               h('span', { className: 'cnbm-badge ' + hit[1] }, hit[0]),
               h('span', { className: 'cnbm-k' }, status.cliVersion ? 'CLI ' + status.cliVersion : '')),
             h('div', { className: 'cnbm-row' },
-              !loggedIn
-                ? h('button', { className: 'cnbm-btn', type: 'button', disabled: busy, onClick: startLogin },
-                  busy ? '发起中…' : '登录 WPS')
-                : null,
+              status.state === 'cli-missing' || status.state === 'credentials-missing'
+                ? null
+                : h('button', { className: 'cnbm-btn', type: 'button', disabled: busy, onClick: startLogin },
+                  busy ? '发起中…' : (loggedIn ? '重新登录' : '登录 WPS')),
               h('button', { className: 'cnbm-btn', type: 'button', onClick: refresh }, '刷新'))),
           h('div', { className: 'cnbm-chips' },
             scopes.length
