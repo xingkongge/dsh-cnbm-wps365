@@ -83,6 +83,26 @@ export function apply(ctx, rawConfig = {}) {
 
   const needsLogin = (auth) => authNeedsLogin(auth)
 
+  // 后台保持令牌新鲜：剩余 < 15 分钟且有 refresh token 时静默续期
+  ctx.effect(() => {
+    const tick = async () => {
+      try {
+        const cli = resolveCliPath(config)
+        if (!cli) return
+        const auth = await readAuthStatus(cli, config)
+        if (!auth.ok) return
+        const d = auth.delegated || {}
+        const remain = Number(d.remaining_seconds) || 0
+        if (d.has_refresh && (d.status !== 'valid' || remain < 900)) {
+          await runCli(cli, ['auth', 'refresh', '--delegated', '-o', 'json'], config)
+        }
+      } catch { /* 后台失败静默，下次工具调用仍会处理 */ }
+    }
+    const timer = setInterval(tick, 10 * 60 * 1000)
+    setTimeout(tick, 30 * 1000).unref?.()
+    return () => clearInterval(timer)
+  })
+
   function loginScopes() {
     if (config.loginScopes) return String(config.loginScopes)
     const granted = autoLogin.lastScopes
@@ -222,7 +242,12 @@ export function apply(ctx, rawConfig = {}) {
         ].join('\n'),
       }
     }
-    const auth = await readAuthStatus(cli, config)
+    let auth = await readAuthStatus(cli, config)
+    // 令牌过期但 refresh token 仍有效时，先静默刷新，避免每次都弹登录
+    if (auth.ok && needsLogin(auth) && auth.delegated && auth.delegated.has_refresh) {
+      const refreshed = await runCli(cli, ['auth', 'refresh', '--delegated', '-o', 'json'], config)
+      if (refreshed.ok) auth = await readAuthStatus(cli, config)
+    }
     if (!auth.ok) {
       return {
         ok: false,
@@ -366,7 +391,12 @@ export function apply(ctx, rawConfig = {}) {
       probeBusinessCommands(cli, config),
       ensureCliVersion(cli),
     ])
-    const auth = await readAuthStatus(cli, config)
+    let auth = await readAuthStatus(cli, config)
+    // 面板打开时也先静默续期，避免"必须点插件名才刷新"
+    if (auth.ok && needsLogin(auth) && auth.delegated && auth.delegated.has_refresh) {
+      const refreshed = await runCli(cli, ['auth', 'refresh', '--delegated', '-o', 'json'], config)
+      if (refreshed.ok) auth = await readAuthStatus(cli, config)
+    }
     const base = {
       ok: true,
       cliPath: cli,
