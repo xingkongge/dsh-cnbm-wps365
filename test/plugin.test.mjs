@@ -10,6 +10,8 @@ import path from 'node:path'
 import { after, before, describe, it } from 'node:test'
 
 import {
+  DEFAULTS,
+  authNeedsLogin,
   classifyFailure,
   extractDevicePrompt,
   isWriteCommand,
@@ -136,6 +138,7 @@ describe('错误分类', () => {
     [{ stderr: 'app credentials not configured', stdout: '' }, 'credentials-missing'],
     [{ stderr: 'no delegated token available, please login', stdout: '' }, 'not-logged-in'],
     [{ stderr: 'HTTP 429 too many requests', stdout: '' }, 'rate-limited'],
+    [{ stderr: 'token endpoint returned error 401 Unauthorized: {"code":40100009,"msg":"invalid_grant","debug":{"desc":"The refresh token has not been found: not_found"}}', stdout: '' }, 'auth-expired'],
   ]
   for (const [result, expected] of cases) {
     it(`映射 ${expected}`, () => {
@@ -148,6 +151,20 @@ describe('错误分类', () => {
     const scope = classifyFailure({ stderr: 'insufficient_scope' })
     assert.notEqual(entitlement.code, scope.code)
     assert.match(entitlement.hint, /套餐/)
+  })
+})
+
+describe('自动重登配置', () => {
+  it('只有 status=valid 才算可用；expired 视同未登录', () => {
+    assert.equal(authNeedsLogin({ delegated: { available: true, status: 'valid' } }), false)
+    assert.equal(authNeedsLogin({ delegated: { available: true, status: 'expired' } }), true)
+    assert.equal(authNeedsLogin({ delegated: { available: false, status: 'unknown' } }), true)
+    assert.equal(authNeedsLogin(null), true)
+  })
+
+  it('默认开启 autoRelogin，且 loginScopes 留空（沿用已授予 scope）', () => {
+    assert.equal(DEFAULTS.autoRelogin, true)
+    assert.equal(DEFAULTS.loginScopes, '')
   })
 })
 

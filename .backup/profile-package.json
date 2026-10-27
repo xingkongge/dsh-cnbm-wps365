@@ -1,0 +1,32 @@
+{
+  "name": "dsh-profile-desktop",
+  "private": true,
+  "dependencies": {
+    "@cnbmtech/dsh-zentao-session": "0.3.5",
+    "@lemoncat7/dsh-knowledge": "2.13.12",
+    "@michengai/dsh-im-connect": "0.1.77",
+    "dsh-context": "^0.72.0",
+    "dsh-mcp": "^1.14.0",
+    "dsh-mnemon": "^0.5.29",
+    "dsh-workbuddy-connect": "^0.7.6",
+    "dshmarket": "^1.66.28"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "@deepseek-ai/dsh-experimental-agent-team-profile",
+        "dsh-mnemon",
+        "dsh-context",
+        "@deepseek-ai/dsh-experimental-schedule-bundle",
+        "dsh-workbuddy-connect",
+        "dshmarket",
+        "@michengai/dsh-im-connect",
+        "@cnbmtech/dsh-zentao-session",
+        "@lemoncat7/dsh-knowledge",
+        "dsh-mcp"
+      ]
+    }
+  }
+}

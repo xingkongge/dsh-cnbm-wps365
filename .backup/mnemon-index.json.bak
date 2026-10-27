@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "documents": [
+    {
+      "id": "b0d29dce-7fd7-43c0-94df-60ddefc76c72",
+      "title": "WPS 365 接入 DSH：从 scope 排障到插件封装全记录",
+      "description": "在 DeepSeek Harness 中以登录人身份访问 WPS 365 知识库/云文档的完整实施记录：企业版授权模型、scope 与端点映射、8 个实测坑、15 个 Agent 工具、v1.0.0 打包分发。",
+      "status": "archived",
+      "filename": "wps-365-dsh-scope-b0d29dce.md",
+      "relativePath": "documents/archived/wps-365-dsh-scope-b0d29dce.md",
+      "sourcePaths": [
+        "wps365-plugin/PLAN.md",
+        "wps365-plugin/README.md",
+        "wps365-plugin/index.js",
+        "wps365-plugin/lib/runner.js"
+      ],
+      "sessionIds": [
+        "session-a1dd90a9-557d-4872-b9dd-113646dd3465"
+      ],
+      "createdAt": "2026-10-19T10:19:13.352Z",
+      "updatedAt": "2026-10-19T10:45:23.690Z",
+      "lastAccessedAt": "2026-10-19T10:45:23.690Z",
+      "revision": 2,
+      "contentHash": "1021ddd54f1e0a4933a7327b8008d26e4f26762d179381c496e9267549353daf",
+      "sizeBytes": 9078,
+      "memoryBodyIds": [],
+      "archivedAt": "2026-10-19T10:45:23.690Z",
+      "archiveSummary": "Archived locally without a Mnemon index, since no Memory Spaces layer takes writes here."
+    }
+  ]
+}

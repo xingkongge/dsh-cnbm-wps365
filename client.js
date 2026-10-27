@@ -108,6 +108,7 @@ window.__ModuleLoader__.load({
       'logged-in': ['已登录', 'ok'],
       'logged-in-but-scopeless': ['已登录但无权限', 'warn'],
       'not-logged-in': ['未登录', 'warn'],
+      'auth-expired': ['登录已过期', 'warn'],
       'credentials-missing': ['未配置应用凭证', 'err'],
       'spec-unavailable': ['命令集未加载', 'err'],
       'cli-missing': ['未安装 CLI', 'err'],
@@ -144,6 +145,9 @@ window.__ModuleLoader__.load({
       const [keyword, setKeyword] = React.useState('')
       const [search, setSearch] = React.useState(null)
       const [login, setLogin] = React.useState(null)
+      const [appForm, setAppForm] = React.useState({ clientId: '', clientSecret: '', apiBase: '' })
+      const [binding, setBinding] = React.useState(false)
+      const autoLoginRef = React.useRef(false)
       const [busy, setBusy] = React.useState(false)
       const [expired, setExpired] = React.useState(false)
 
@@ -153,6 +157,10 @@ window.__ModuleLoader__.load({
           setStatus(next)
           setStatusError('')
           if (next && next.state !== 'logged-in') setExpired(false)
+          // 服务端已自动发起重登：直接把验证地址/用户码显示到面板
+          if (next && next.login && next.login.pending) {
+            setLogin({ pending: true, url: next.login.url || '', userCode: next.login.userCode || '', qr: next.login.qr || '' })
+          }
           return next
         } catch (error) {
           setStatusError(String((error && error.message) || error))
@@ -215,19 +223,18 @@ window.__ModuleLoader__.load({
       React.useEffect(() => {
         if (!loginPending) return undefined
         const timer = setInterval(async () => {
-          const result = await api('spaces')
-          if (result.ok) {
+          const next = await loadStatus()
+          if (next && next.state === 'logged-in') {
             setLogin(null)
             setExpired(false)
-            await loadStatus()
+            autoLoginRef.current = false
             await loadSpaces()
             return
           }
-          const message = String(result.error || '')
-          const stillWaiting = isExpiredText(message) || /尚未登录|未登录/.test(message)
-          if (!stillWaiting) {
-            setLogin((prev) => (prev ? Object.assign({}, prev, { pending: false, error: message || '授权已完成，但读取知识库失败' }) : prev))
-            await loadStatus()
+          if (next && next.login && next.login.pending) {
+            setLogin((prev) => (prev
+              ? Object.assign({}, prev, { url: next.login.url || prev.url, userCode: next.login.userCode || prev.userCode, qr: next.login.qr || prev.qr })
+              : prev))
           }
         }, 3000)
         const expiry = setTimeout(() => {
@@ -235,6 +242,14 @@ window.__ModuleLoader__.load({
         }, 300000)
         return () => { clearInterval(timer); clearTimeout(expiry) }
       }, [loginPending, loadStatus, loadSpaces])
+
+      // 登录过期时自动发起重登（只触发一次）
+      React.useEffect(() => {
+        if (!status || status.state !== 'auth-expired') return
+        if (autoLoginRef.current) return
+        autoLoginRef.current = true
+        void startLogin()
+      }, [status])
 
       async function startLogin() {
         setBusy(true)
@@ -247,13 +262,28 @@ window.__ModuleLoader__.load({
           if (!result.ok) {
             setLogin({ pending: false, error: result.error || '发起登录失败' })
           } else {
-            setLogin({ pending: true, url: result.url || '', userCode: result.userCode || '', raw: result.raw || '' })
+            setLogin({ pending: true, url: result.url || '', userCode: result.userCode || '', qr: result.qr || '', raw: result.raw || '' })
           }
         } catch (error) {
           setLogin({ pending: false, error: String((error && error.message) || error) })
         } finally {
           setBusy(false)
         }
+      }
+
+      async function bindApp() {
+        if (!appForm.clientId.trim() || !appForm.clientSecret.trim()) {
+          setLogin({ pending: false, error: '请填写 App ID 和 App Secret' })
+          return
+        }
+        setBinding(true)
+        try {
+          const r = await api('bind-app', { method: 'POST', body: JSON.stringify(appForm) })
+          if (!r.ok) setLogin({ pending: false, error: r.error || '绑定失败' })
+          else { setLogin(null); await loadStatus(); await startLogin() }
+        } catch (error) {
+          setLogin({ pending: false, error: String((error && error.message) || error) })
+        } finally { setBinding(false) }
       }
 
       function openSpace(item) {
@@ -354,8 +384,12 @@ window.__ModuleLoader__.load({
           hint = h('div', { className: 'cnbm-hint' }, '安装：',
             h('code', null, 'curl -fsSL https://open-docs.wpscdn.cn/cli/install.sh | bash'))
         } else if (status.state === 'credentials-missing') {
-          hint = h('div', { className: 'cnbm-hint' },
-            '下一步：终端执行 ', h('code', null, 'wps365-cli auth setup --client-id <团队AppID> --client-secret <向管理员获取>'))
+          hint = h('div', null,
+            h('div', { className: 'cnbm-hint' }, '首次使用：填入团队 WPS 应用的 App ID / App Secret（只保存到本机钥匙串）。'),
+            h('div', { className: 'cnbm-row', style: { marginTop: 8 } },
+              h('input', { className: 'cnbm-input', placeholder: 'App ID', value: appForm.clientId, onChange: (e) => setAppForm({ ...appForm, clientId: e.target.value }) }),
+              h('input', { className: 'cnbm-input', placeholder: 'App Secret', type: 'password', value: appForm.clientSecret, onChange: (e) => setAppForm({ ...appForm, clientSecret: e.target.value }) }),
+              h('button', { className: 'cnbm-btn', type: 'button', disabled: binding, onClick: () => void bindApp() }, binding ? '绑定中…' : '保存并登录')))
         } else if (status.state === 'not-logged-in' || status.state === 'logged-in-but-scopeless') {
           hint = h('div', { className: 'cnbm-hint' }, '下一步：点「登录 WPS」，用企业账号完成设备码授权。')
         } else if (status.configDir) {
@@ -381,7 +415,8 @@ window.__ModuleLoader__.load({
           login && login.error ? h('div', { className: 'cnbm-hint cnbm-err' }, login.error) : null,
           login && login.pending
             ? h('div', { className: 'cnbm-hint' },
-              '请在企业浏览器完成授权：',
+              login.qr ? h('img', { src: login.qr, alt: '登录二维码', width: 180, height: 180, style: { display: 'block', margin: '8px 0', borderRadius: 8 } }) : null,
+              '扫码或打开链接完成授权：',
               login.url ? h('div', null, h('a', { className: 'cnbm-link', href: login.url, target: '_blank', rel: 'noopener' }, login.url)) : null,
               login.userCode ? h('div', null, '用户码：', h('strong', null, login.userCode)) : null,
               h('div', null, '授权完成后本面板会自动刷新。'))

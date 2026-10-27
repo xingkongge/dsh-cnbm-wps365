@@ -9,6 +9,8 @@
 #   readOnly      是否禁止写类命令，默认 true
 #   allowWrite    显式放开写类命令，默认 false（readOnly 为 true 时不生效）
 #   loginTimeoutMs 设备码登录等待上限，默认 300000
+#   autoRelogin   授权失效时自动拉起设备码登录，默认 true（v2.1 新增）
+#   loginScopes   自动重登申请的 scope（逗号分隔）；留空=沿用已授予 scope
 - insert:
     - id: cnbm-knowledge
       name: '@cnbm/dsh-wps365'

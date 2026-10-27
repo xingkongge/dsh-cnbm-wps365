@@ -12,6 +12,7 @@
  */
 import {
   DEFAULTS,
+  authNeedsLogin,
   checkScope,
   classifyFailure,
   extractDevicePrompt,
@@ -24,6 +25,9 @@ import {
   startDeviceLogin,
   truncate,
 } from './lib/runner.js'
+import { readFile, unlink } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { registerWebUi } from './lib/ui.js'
 
 export const name = 'cnbm-knowledge'
@@ -63,6 +67,103 @@ const SCOPE_WIKI = ['kso.wiki.readwrite']
 export function apply(ctx, rawConfig = {}) {
   const config = { ...DEFAULTS, ...(rawConfig && typeof rawConfig === 'object' ? rawConfig : {}) }
   const login = { current: null }
+
+  // ── 授权过期自动重登 ────────────────────────────────────────────
+  // 实测：refresh token 可能失效（invalid_grant: not_found），此时 auth status 仍报
+  // delegated.available=true / status=expired。任何工具一旦探测到，自动拉起设备码登录，
+  // 并把验证地址与用户码直接返回给调用方，用户只需在浏览器确认一次。
+  const DEFAULT_LOGIN_SCOPES = [
+    'kso.wiki.readwrite',
+    'kso.user_base.read',
+    'kso.file.read',
+    'kso.file.readwrite',
+    'kso.dbsheet.readwrite',
+  ]
+  const autoLogin = { lastScopes: null, lastStartedAt: 0, lastPrompt: null, lastQr: null }
+
+  const needsLogin = (auth) => authNeedsLogin(auth)
+
+  function loginScopes() {
+    if (config.loginScopes) return String(config.loginScopes)
+    const granted = autoLogin.lastScopes
+    return (granted && granted.length ? granted : DEFAULT_LOGIN_SCOPES).join(',')
+  }
+
+  function loginInfo() {
+    const pending = login.current
+    if (!pending) return null
+    const prompt = extractDevicePrompt(pending.output)
+    return {
+      pending: pending.exitCode === null,
+      url: prompt.url || '',
+      userCode: prompt.userCode || '',
+      startedAt: pending.startedAt,
+      exitCode: pending.exitCode,
+      qr: autoLogin.lastQr && autoLogin.lastQr.url === prompt.url ? autoLogin.lastQr.data : '',
+    }
+  }
+
+  function loginPromptBlock(result) {
+    if (!result || result.disabled) return ''
+    const prompt = result.prompt || autoLogin.lastPrompt || {}
+    const lines = [
+      result.reused
+        ? '🔐 WPS 授权已失效，自动重登正在进行中：'
+        : '🔐 WPS 授权已失效，已自动发起重新登录（浏览器应已自动打开）：',
+      prompt.url ? `验证地址：${prompt.url}` : '',
+      prompt.userCode ? `用户码：${prompt.userCode}` : '',
+      '请用【企业账号】在浏览器确认授权；完成后重新调用本工具即可，无需再手动登录。',
+    ]
+    return lines.filter(Boolean).join('\n')
+  }
+
+  /** 把验证 URL 生成为 PNG data URL（扫码用），失败返回空串。 */
+  async function makeQr(url) {
+    if (!url) return ''
+    if (autoLogin.lastQr && autoLogin.lastQr.url === url) return autoLogin.lastQr.data
+    try {
+      const cli = resolveCliPath(config)
+      if (!cli) return ''
+      // CLI 要求 --file 相对当前工作目录，写入后用绝对路径读回
+      const name = `.cnbm-qr-${Date.now()}.png`
+      const res = await runCli(cli, ['auth', 'qrcode', url, '--file', name, '--size', '320'], config)
+      if (!res.ok) return ''
+      const file = path.resolve(process.cwd(), name)
+      const data = `data:image/png;base64,${(await readFile(file)).toString('base64')}`
+      await unlink(file).catch(() => {})
+      autoLogin.lastQr = { url, data }
+      return data
+    } catch { return '' }
+  }
+
+  /** 复用进行中的登录进程，或新起一个设备码登录；返回 {pending,reused,prompt} */
+  async function ensureRelogin(scopes) {
+    if (config.autoRelogin === false) return { disabled: true }
+    const cli = resolveCliPath(config)
+    if (!cli) return { error: 'cli-missing' }
+    const pending = login.current
+    const grace = config.loginTimeoutMs ?? DEFAULTS.loginTimeoutMs
+    if (pending && pending.child && pending.exitCode === null && Date.now() - pending.startedAt < grace) {
+      const prompt = extractDevicePrompt(pending.output)
+      autoLogin.lastPrompt = prompt
+      return { pending: true, reused: true, prompt }
+    }
+    const requested = scopes || loginScopes()
+    const state = startDeviceLogin(cli, config, { scopes: requested })
+    login.current = state
+    autoLogin.lastStartedAt = state.startedAt
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    const prompt = extractDevicePrompt(state.output)
+    autoLogin.lastPrompt = prompt
+    if (prompt.url) await makeQr(prompt.url)
+    return { pending: state.exitCode === null, reused: false, prompt, scopes: requested }
+  }
+
+  function clearSettledLogin(auth) {
+    const pending = login.current
+    if (!pending) return
+    if (pending.exitCode !== null || (auth && !needsLogin(auth))) login.current = null
+  }
 
   // 插件卸载时确保没有遗留的登录子进程
   ctx.effect(() => () => {
@@ -130,9 +231,26 @@ export function apply(ctx, rawConfig = {}) {
           : '❌ 无法读取认证状态，原始输出：\n' + truncate(auth.raw?.stderr || auth.raw?.stdout || '', 2000),
       }
     }
-    if (!auth.delegated.available) {
-      return { ok: false, text: '⚠️ 尚未登录 WPS。\n\n下一步：调用 cnbm_login，用企业账号完成设备码授权。' }
+    if (auth.grantedScopes) autoLogin.lastScopes = auth.grantedScopes
+    if (needsLogin(auth)) {
+      if (!auth.clientIdConfigured || !auth.clientSecretConfigured) {
+        return {
+          ok: false,
+          text: '⚠️ 未配置应用凭证，无法自动重登。\n\n下一步：wps365-cli auth setup --client-id <团队AppID> --client-secret <向管理员获取>',
+        }
+      }
+      clearSettledLogin(auth)
+      // 自动重登统一沿用「已授予 scope」全集，避免只申请当前工具所需权限而丢 scope
+      const relogin = await ensureRelogin()
+      const block = loginPromptBlock(relogin)
+      return {
+        ok: false,
+        text: block
+          ? `⚠️ WPS 登录已失效（${auth.delegated.status}）。\n\n${block}`
+          : '⚠️ 尚未登录 WPS。\n\n下一步：调用 cnbm_login，用企业账号完成设备码授权。',
+      }
     }
+    clearSettledLogin(auth)
     if (scopes) {
       const blocked = guardScope(auth, scopes)
       if (blocked) return { ok: false, text: blocked }
@@ -153,6 +271,11 @@ export function apply(ctx, rawConfig = {}) {
     const result = await runCliJson(cli, full, config, { signal })
     if (!result.ok) {
       const failure = classifyFailure(result, auth)
+      if ((failure.code === 'auth-expired' || failure.code === 'not-logged-in') && config.autoRelogin !== false) {
+        const relogin = await ensureRelogin()
+        const block = loginPromptBlock(relogin)
+        if (block) return [`⚠️ ${failure.title}`, '', block].join('\n')
+      }
       return [
         `⚠️ ${failure.title}`,
         '',
@@ -180,6 +303,11 @@ export function apply(ctx, rawConfig = {}) {
     const result = await runCliJson(cli, [...args, '-o', 'json'], config, { signal })
     if (!result.ok) {
       const failure = classifyFailure(result, auth)
+      if ((failure.code === 'auth-expired' || failure.code === 'not-logged-in') && config.autoRelogin !== false) {
+        const relogin = await ensureRelogin()
+        const block = loginPromptBlock(relogin)
+        if (block) return { ok: false, text: [`⚠️ ${failure.title}`, '', block].join('\n') }
+      }
       return {
         ok: false,
         text: `⚠️ ${failure.title}\n\n下一步：${failure.hint}\n\n${truncate(result.stderr || result.stdout, 3000)}`,
@@ -251,14 +379,23 @@ export function apply(ctx, rawConfig = {}) {
       grantedScopes: auth.ok ? auth.grantedScopes : null,
       delegatedAvailable: auth.ok ? auth.delegated.available : false,
     }
+    if (auth.ok && auth.grantedScopes) autoLogin.lastScopes = auth.grantedScopes
+    if (auth.ok && !needsLogin(auth)) clearSettledLogin(auth)
     let state
     if (!probe.available) state = 'spec-unavailable'
     else if (!auth.ok) state = 'auth-status-unreadable'
     else if (!auth.clientIdConfigured || !auth.clientSecretConfigured) state = 'credentials-missing'
     else if (!auth.delegated.available) state = 'not-logged-in'
+    else if (needsLogin(auth)) state = 'auth-expired'
     else if (auth.grantedScopes && auth.grantedScopes.length === 0) state = 'logged-in-but-scopeless'
     else state = 'logged-in'
-    return { ...base, state, signal }
+    return {
+      ...base,
+      delegatedStatus: auth.ok ? auth.delegated.status : 'unknown',
+      state,
+      login: loginInfo(),
+      signal,
+    }
   }
 
   /** 读正文。markdown 优先，失败回退 plain。 */
@@ -360,9 +497,19 @@ export function apply(ctx, rawConfig = {}) {
       if (!auth.clientIdConfigured || !auth.clientSecretConfigured) {
         lines.push('', '状态：credentials-missing')
         lines.push('下一步：wps365-cli auth setup --client-id <团队AppID> --client-secret <向管理员获取>')
-      } else if (!auth.delegated.available) {
-        lines.push('', '状态：not-logged-in')
-        lines.push('下一步：调用 cnbm_login 发起设备码登录，用企业账号完成授权。')
+      } else if (!auth.delegated.available || needsLogin(auth)) {
+        lines.push('', `状态：${auth.delegated.available ? 'auth-expired' : 'not-logged-in'}（${auth.delegated.status}）`)
+        const info = loginInfo()
+        if (info && info.pending) {
+          lines.push('', '自动重登进行中，请在浏览器完成授权：')
+          if (info.url) lines.push(`验证地址：${info.url}`)
+          if (info.userCode) lines.push(`用户码：${info.userCode}`)
+        } else {
+          const relogin = await ensureRelogin()
+          const block = loginPromptBlock(relogin)
+          if (block) lines.push('', block)
+          else lines.push('下一步：调用 cnbm_login 发起设备码登录，用企业账号完成授权。')
+        }
       } else if (auth.grantedScopes && auth.grantedScopes.length === 0) {
         lines.push('', '状态：logged-in-but-scopeless')
         lines.push('⚠️ 登录成功但令牌没有任何 scope，所有业务接口都会返回 403。')
@@ -421,7 +568,7 @@ export function apply(ctx, rawConfig = {}) {
         ].filter(Boolean).join('\n')
       }
 
-      const state = startDeviceLogin(cli, config, { scopes: args.scopes, signal: exec.signal })
+      const state = startDeviceLogin(cli, config, { scopes: args.scopes || loginScopes(), signal: exec.signal })
       login.current = state
 
       // 给 CLI 一点时间打印验证地址与二维码，然后立即返回，不阻塞等授权。
@@ -819,23 +966,22 @@ export function apply(ctx, rawConfig = {}) {
     },
 
     async login({ scopes } = {}) {
+      const result = await ensureRelogin(scopes)
+      if (result.error === 'cli-missing') return { ok: false, error: '未安装 wps365-cli' }
+      if (result.disabled) return { ok: false, error: '自动重登已禁用（config.autoRelogin=false）' }
+      const prompt = result.prompt || {}
+      const qr = await makeQr(prompt.url || '')
+      return { ok: true, url: prompt.url || '', userCode: prompt.userCode || '', qr, reused: Boolean(result.reused) }
+    },
+
+    async bindApp({ clientId, clientSecret, apiBase } = {}) {
+      if (!clientId || !clientSecret) return { ok: false, error: '缺少 App ID 或 App Secret' }
       const cli = resolveCliPath(config)
       if (!cli) return { ok: false, error: '未安装 wps365-cli' }
-      const pending = login.current
-      if (pending && !pending.settled) {
-        const prompt = extractDevicePrompt(pending.output)
-        return { ok: true, url: prompt.url, userCode: prompt.userCode, reused: true }
-      }
-      const state = startDeviceLogin(cli, config, { scopes })
-      login.current = state
-      await new Promise((resolve) => setTimeout(resolve, 2500))
-      const prompt = extractDevicePrompt(state.output)
-      return {
-        ok: true,
-        url: prompt.url,
-        userCode: prompt.userCode,
-        raw: truncate(state.output.trim(), 1500),
-      }
+      const args = ['auth', 'setup', '--client-id', String(clientId), '--client-secret', String(clientSecret)]
+      if (apiBase) args.push('--api-base', String(apiBase))
+      const res = await runCli(cli, args, config)
+      return res.ok ? { ok: true } : { ok: false, error: (res.stderr || res.stdout || '绑定失败').slice(0, 300) }
     },
   }
 

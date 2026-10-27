@@ -74,7 +74,7 @@ wps365-cli auth login --device
 ### 打包分发（本地发版）
 
 ```bash
-node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.1.tgz + dist/SHA256SUMS（约 35KB）
+node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.1.0.tgz + dist/SHA256SUMS（约 35KB）
 ```
 
 产物已验证**自包含**：解包后可直接 `import`，15 个工具全部注册，不依赖工作区里的任何其它文件。
@@ -83,8 +83,8 @@ node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.1.tgz + dist/SHA256
 | 分发方式 | 成员侧安装命令 |
 |---------|---------------|
 | **内网 Git（推荐）** | `dsh plugin --profile desktop add git+https://内网/…/dsh-wps365.git` |
-| tarball | `dsh plugin --profile desktop add ./dist/cnbm-dsh-wps365-2.0.1.tgz` |
-| 私有 npm | `dsh plugin --profile desktop add @cnbm/dsh-wps365@2.0.1` |
+| tarball | `dsh plugin --profile desktop add ./dist/cnbm-dsh-wps365-2.1.0.tgz` |
+| 私有 npm | `dsh plugin --profile desktop add @cnbm/dsh-wps365@2.1.0` |
 | 侧边栏 GUI | 插件 → 安装，粘贴上述任一地址 |
 
 包内只含 12 个文件：`index.js` / `client.js` / `lib/runner.js` / `lib/ui.js` / `lib/ui-page.js` /
@@ -100,7 +100,7 @@ node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.1.tgz + dist/SHA256
 >
 > ```bash
 > dsh plugin --profile desktop remove @local/dsh-wps365
-> dsh plugin --profile desktop add ./dist/cnbm-dsh-wps365-2.0.1.tgz
+> dsh plugin --profile desktop add ./dist/cnbm-dsh-wps365-2.1.0.tgz
 > # 或：dsh plugin --profile desktop add git+https://内网/…/dsh-wps365.git
 > ```
 
@@ -134,6 +134,19 @@ node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.1.tgz + dist/SHA256
 - **零外部资源**：面板无构建步骤、无 CDN 依赖；独立页面 HTML/CSS/JS 全部内联。
 - **仅回环可访问**：校验 `Host` 与 `Origin`；面板/页面调用 `/cnbm/api/*` 时还必须带 `x-dsh-cnbm: 1` 自定义头，挡住跨站页面与裸 GET。
 - **优雅降级**：若宿主没有 `webServer` 服务，只跳过独立页面，Agent 工具不受影响；Web 注册失败会被隔离并记一条 warning，不会连带回滚工具。
+
+## 授权过期自动重登（v2.2.0）
+
+WPS 的 refresh token 可能失效（`invalid_grant: not_found`），此时 `auth status` 仍显示
+`delegated.available=true`，但任何业务调用都会 401。v2.2.0 起：
+
+1. 前置检查把 `status !== "valid"` 一律视为失效（`auth-expired`）；
+2. 任意工具探测到失效后，**自动拉起设备码登录**（浏览器自动打开），并把验证地址与用户码
+   直接放进工具结果；
+3. 登录进程在后台等待，用户确认后再次调用即可，无需手动执行 `cnbm_login`；
+4. 面板进入「登录已过期」时自动发起重登，并轮询状态，授权完成自动刷新。
+
+可关闭/定制：`autoRelogin: false`、`loginScopes: "kso.wiki.readwrite,..."`。
 
 ## 提供的工具
 
@@ -188,6 +201,8 @@ node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.1.tgz + dist/SHA256
     readOnly: true         # 默认只读
     allowWrite: false      # 开启写操作需两项同时为 false/true
     loginTimeoutMs: 300000
+    autoRelogin: true       # 授权失效时自动拉起设备码登录（v2.1）
+    loginScopes: ''         # 自动重登申请的 scope；留空=沿用令牌里已授予的 scope
 ```
 
 ## scope 决定你能用哪组工具
@@ -238,9 +253,17 @@ node scripts/release.mjs   # 产出 dist/cnbm-dsh-wps365-2.0.1.tgz + dist/SHA256
 ## 开发与自测
 
 ```bash
-node --test test/        # 42 项用例，含真实 CLI 端到端调用与面板槽位注册
+node --test test/        # 45 项用例，含真实 CLI 端到端调用与面板槽位注册
 ```
 
 测试会用一个假 `ctx` 收集工具声明，并对 `.tools/wps365-cli` 真实执行，覆盖命令探测、认证状态解析、
 8 类错误映射、只读拦截等；`test/ui.test.mjs` 覆盖页面与 API（含自定义头校验），
 `test/client.test.mjs` 覆盖客户端模块的两个槽位注册。`.tools/`、`.wpscfg/` 不入库（见 `.gitignore`）。
+
+
+## v2.2.0 · 免 CLI 配置的绑定与扫码登录
+
+- 面板首次使用直接填 **App ID / App Secret**，点「保存并登录」→ 调 `wps365-cli auth setup` 存进本机钥匙串；
+- 之后设备码登录会同时显示 **二维码 PNG**（`wps365-cli auth qrcode`）+ 验证地址 + 用户码；
+- 也支持在 profile 的 `cordis.patch.yml` 用 `clientId` / `clientSecret` / `apiBase` 注入（走 `WPS365_CLIENT_ID` 等环境变量，不落盘）；
+- 同事不需要先跑 `config init`，装好插件、填一次 App ID/Secret、扫码即可。
