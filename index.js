@@ -1028,7 +1028,7 @@ export function apply(ctx, rawConfig = {}) {
       login.current = null
       autoLogin.lastScopes = null
       autoLogin.lastPrompt = null
-      const result = await ensureRelogin(DEFAULT_LOGIN_SCOPES.join(','))
+      const result = await ensureRelogin()
       if (result.error === 'cli-missing') return { ok: false, error: '未安装 wps365-cli' }
       if (result.disabled) return { ok: false, error: '自动重登已禁用' }
       const prompt = result.prompt || {}

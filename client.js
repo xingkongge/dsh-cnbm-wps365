@@ -256,11 +256,9 @@ window.__ModuleLoader__.load({
       async function startLogin() {
         setBusy(true)
         try {
-          const scopes = (status && status.grantedScopes && status.grantedScopes.length)
-            ? status.grantedScopes
-            : DEFAULT_SCOPES
-          const query = scopes.length ? '?scopes=' + encodeURIComponent(scopes.join(',')) : ''
-          const result = await api('login' + query, { method: 'POST' })
+          // 不把旧 token 的 grantedScopes 再传给后端：由 Host 依据 config.loginScopes /
+          // 默认集决定申请范围，避免"越登越少"。
+          const result = await api('login', { method: 'POST' })
           if (!result.ok) {
             setLogin({ pending: false, error: result.error || '发起登录失败' })
           } else {
