@@ -983,6 +983,35 @@ export function apply(ctx, rawConfig = {}) {
         : { ok: false, error: result.text }
     },
 
+    async dbtPreview({ fileId } = {}) {
+      if (!/^[\w-]+$/.test(String(fileId || ''))) return { ok: false, error: 'fileId 不合法' }
+      const ready = await preflight({ scopes: ['kso.dbsheet.readwrite', 'kso.file.read'] })
+      if (!ready.ok) return { ok: false, error: ready.text }
+      const identity = await resolveFileIdentity(ready.cli, ready.auth, fileId)
+      if (!identity.ok) return { ok: false, error: identity.text }
+      const real = identity.fileId
+      const schema = await runCliJson(ready.cli, ['dbsheet', 'schema', 'get', real, '-o', 'json'], config)
+      if (!schema.ok) return { ok: false, error: `读取表结构失败：${schema.stderr || schema.stdout}` }
+      const sheets = (schema.json?.data?.sheets || []).filter((x) => x.name !== '仪表盘')
+      const sheet = sheets[0]
+      if (!sheet) return { ok: false, error: `该文件没有可预览的数据表（sheets=${(schema.json?.data?.sheets || []).length}）` }
+      const recs = await runCliJson(ready.cli, ['dbsheet', 'record', 'list', real, String(sheet.id), '--page-size', '20', '-o', 'json'], config)
+      if (!recs.ok) return { ok: false, error: `读取记录失败：${recs.stderr || recs.stdout}` }
+      const fields = (sheet.fields || []).map((f) => f.name).slice(0, 8)
+      const rows = (recs.json?.data?.records || []).map((r) => {
+        const f = JSON.parse(r.fields || '{}')
+        return fields.map((name) => {
+          const v = f[name]
+          if (v === null || v === undefined) return ''
+          if (Array.isArray(v)) return v.map((x) => (x && typeof x === 'object' ? (x.name || x.fileName || x.displayText || '') : String(x))).filter(Boolean).join('、')
+          if (typeof v === 'object') return v.name || v.fileName || v.displayText || ''
+          if (typeof v === 'boolean') return v ? '是' : '否'
+          return String(v)
+        })
+      })
+      return { ok: true, link: identity.meta?.link_url || '', sheetName: sheet.name, fields, rows, total: rows.length }
+    },
+
     async search({ keyword, spaceIds, pageSize } = {}) {
       const ids = String(spaceIds || '').split(',').map((x) => x.trim()).filter(Boolean)
       if (!keyword) return { ok: false, error: '缺少 keyword' }

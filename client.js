@@ -68,6 +68,10 @@ window.__ModuleLoader__.load({
 .cnbm-meta { color: var(--dsw-alias-label-secondary); font-size: 12px; white-space: nowrap; }
 .cnbm-empty { color: var(--dsw-alias-label-secondary); padding: 16px 4px; }
 .cnbm-err { color: var(--dsw-alias-state-error-primary); }
+.cnbm-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cnbm-table th, .cnbm-table td { padding: 6px 8px; border-bottom: 1px solid var(--dsw-alias-border-l1); text-align: left; vertical-align: top; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cnbm-table th { color: var(--dsw-alias-label-secondary); font-weight: 500; position: sticky; top: 0; background: var(--dsw-alias-bg-layer-1); }
+.cnbm-table-wrap { max-height: 420px; overflow: auto; border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px; }
 .cnbm-reader-title { font-weight: 650; }
 .cnbm-body { white-space: pre-wrap; word-break: break-word; background: var(--dsw-alias-bg-base);
   border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px; padding: 12px;
@@ -354,7 +358,18 @@ window.__ModuleLoader__.load({
       }
 
       async function openFile(id, name) {
-        setReader({ title: name || '正文', text: '读取中…', error: '' })
+        const isDbt = /\.dbt$/i.test(String(name || ''))
+        setReader({ title: name || '正文', text: isDbt ? '' : '读取中…', error: '', data: null })
+        if (isDbt) {
+          try {
+            const result = await api('dbt-preview?fileId=' + encodeURIComponent(id))
+            if (result.ok) setReader({ title: name || '.dbt', text: '', error: '', data: result })
+            else setReader({ title: name || '.dbt', text: '', error: result.error || '预览失败', data: null })
+          } catch (error) {
+            setReader({ title: name || '.dbt', text: '', error: String((error && error.message) || error), data: null })
+          }
+          return
+        }
         try {
           const result = await api('read?fileId=' + encodeURIComponent(id))
           const failure = result.ok ? '' : (result.error || '读取失败')
@@ -557,7 +572,16 @@ window.__ModuleLoader__.load({
             h('button', { className: 'cnbm-btn', type: 'button', onClick: () => setReader(null) }, '关闭')),
           reader.error
             ? h('div', { className: 'cnbm-hint cnbm-err' }, reader.error)
-            : h('pre', { className: 'cnbm-body' }, reader.text))
+            : reader.data
+              ? h('div', null,
+                h('div', { className: 'cnbm-row-between', style: { marginBottom: 8 } },
+                  h('span', { className: 'cnbm-hint' }, `${reader.data.sheetName} · 预览前 ${reader.data.rows.length} 行（最多 8 列）`),
+                  reader.data.link ? h('a', { className: 'cnbm-btn', href: reader.data.link, target: '_blank', rel: 'noopener' }, '在 WPS 中打开') : null),
+                h('div', { className: 'cnbm-table-wrap' },
+                  h('table', { className: 'cnbm-table' },
+                    h('thead', null, h('tr', null, reader.data.fields.map((f) => h('th', { key: f }, f)))),
+                    h('tbody', null, reader.data.rows.map((row, i) => h('tr', { key: i }, row.map((v, j) => h('td', { key: j, title: v }, v))))))))
+              : h('pre', { className: 'cnbm-body' }, reader.text))
       }
 
       return h('div', { className: 'cnbm-panel' },
