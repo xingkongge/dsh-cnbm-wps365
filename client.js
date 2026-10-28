@@ -455,6 +455,7 @@ window.__ModuleLoader__.load({
             scopes.length
               ? scopes.map((scope) => h('span', { key: scope, className: 'cnbm-chip' }, scope))
               : h('span', { className: 'cnbm-hint' }, '未授予任何 scope')),
+          status.loginScopes ? h('div', { className: 'cnbm-hint' }, '登录申请：' + status.loginScopes) : null,
           status.missingScopes && status.missingScopes.length
             ? h('div', { className: 'cnbm-hint' }, '缺少必需 scope：' + status.missingScopes.join('、') + '。点「重新登录」会一次性申请全部必需 scope；若仍缺少，需管理员在 WPS 应用后台为这些 scope 审批用户授权。')
             : null,

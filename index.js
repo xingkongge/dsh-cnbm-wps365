@@ -413,6 +413,7 @@ export function apply(ctx, rawConfig = {}) {
       clientIdConfigured: auth.ok ? auth.clientIdConfigured : false,
       clientSecretConfigured: auth.ok ? auth.clientSecretConfigured : false,
       grantedScopes: auth.ok ? auth.grantedScopes : null,
+      loginScopes: loginScopes(),
       requiredScopes: DEFAULT_LOGIN_SCOPES,
       missingScopes: auth.ok && Array.isArray(auth.grantedScopes)
         ? DEFAULT_LOGIN_SCOPES.filter((x) => !auth.grantedScopes.includes(x))
@@ -1075,7 +1076,7 @@ export function apply(ctx, rawConfig = {}) {
   async function checkUpdates() {
     const out = []
     for (const [key, repo] of Object.entries(config.updateRepos || {})) {
-      if (!repo) continue
+      if (!repo || key !== 'cnbm') continue
       try {
         const latest = await ghLatest(repo)
         const local = key === 'cnbm' ? await localVersion() : await installedVersion(PKG_PRESALES)
