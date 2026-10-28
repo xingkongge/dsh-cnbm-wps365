@@ -77,6 +77,7 @@ export function apply(ctx, rawConfig = {}) {
     'kso.user_base.read',
     'kso.file.read',
     'kso.file.readwrite',
+    'kso.sheets.readwrite',
     'kso.dbsheet.readwrite',
   ]
   const autoLogin = { lastScopes: null, lastStartedAt: 0, lastPrompt: null, lastQr: null }
@@ -106,8 +107,9 @@ export function apply(ctx, rawConfig = {}) {
 
   function loginScopes() {
     if (config.loginScopes) return String(config.loginScopes)
-    const granted = autoLogin.lastScopes
-    return (granted && granted.length ? granted : DEFAULT_LOGIN_SCOPES).join(',')
+    // 重新登录时总是申请"默认必需 scope"的并集，避免沿用旧 token 的少量 scope 导致越登越少
+    const set = new Set([...DEFAULT_LOGIN_SCOPES, ...(autoLogin.lastScopes || [])])
+    return [...set].join(',')
   }
 
   function loginInfo() {
@@ -408,6 +410,10 @@ export function apply(ctx, rawConfig = {}) {
       clientIdConfigured: auth.ok ? auth.clientIdConfigured : false,
       clientSecretConfigured: auth.ok ? auth.clientSecretConfigured : false,
       grantedScopes: auth.ok ? auth.grantedScopes : null,
+      requiredScopes: DEFAULT_LOGIN_SCOPES,
+      missingScopes: auth.ok && Array.isArray(auth.grantedScopes)
+        ? DEFAULT_LOGIN_SCOPES.filter((x) => !auth.grantedScopes.includes(x))
+        : [],
       delegatedAvailable: auth.ok ? auth.delegated.available : false,
     }
     if (auth.ok && auth.grantedScopes) autoLogin.lastScopes = auth.grantedScopes
