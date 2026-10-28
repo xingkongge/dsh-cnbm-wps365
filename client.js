@@ -33,6 +33,7 @@ window.__ModuleLoader__.load({
 .cnbm-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .cnbm-row-between { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .cnbm-k { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.cnbm-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #e5484d; margin-left: 4px; vertical-align: middle; }
 .cnbm-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .cnbm-badge.ok { color: var(--dsw-alias-state-success-primary); border: 1px solid currentColor; }
 .cnbm-badge.warn { color: var(--dsw-alias-state-warn-primary); border: 1px solid currentColor; }
@@ -146,6 +147,7 @@ window.__ModuleLoader__.load({
       const [search, setSearch] = React.useState(null)
       const [login, setLogin] = React.useState(null)
       const [updates, setUpdates] = React.useState(null)
+      const [updatesOpen, setUpdatesOpen] = React.useState(false)
       const [updating, setUpdating] = React.useState('')
       const [appForm, setAppForm] = React.useState({ clientId: '', clientSecret: '', apiBase: '' })
       const [binding, setBinding] = React.useState(false)
@@ -468,6 +470,8 @@ window.__ModuleLoader__.load({
             : null)
       }
 
+      React.useEffect(() => { void checkUpdates() }, [])
+
       // ── 知识库浏览 ──────────────────────────────────────────
       function renderWiki() {
         const crumb = []
@@ -562,9 +566,12 @@ window.__ModuleLoader__.load({
             h('div', { className: 'cnbm-title' }, 'cnbm知识库'),
             h('div', { className: 'cnbm-sub' }, '以当前登录人身份读取知识库与云文档；可见范围完全由 WPS 后台授权决定')),
           h('div', { className: 'cnbm-actions' },
+            h('button', { className: 'cnbm-btn', type: 'button', onClick: () => { setUpdatesOpen(!updatesOpen); if (!updates) void checkUpdates() } },
+              '插件更新',
+              updates && updates.some((u) => u.hasUpdate) ? h('span', { className: 'cnbm-dot' }) : null),
             h('button', { className: 'cnbm-btn', type: 'button', onClick: () => void refresh() }, '刷新'))),
+        updatesOpen ? renderUpdates() : null,
         renderStatus(),
-        renderUpdates(),
         h('div', { className: 'cnbm-tabs', role: 'tablist' },
           h('button', {
             key: 'wiki', className: 'cnbm-tab', type: 'button', role: 'tab',
