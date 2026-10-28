@@ -99,6 +99,7 @@ export function apply(ctx, rawConfig = {}) {
       } catch { /* 后台失败静默，下次工具调用仍会处理 */ }
     }
     const timer = setInterval(tick, 10 * 60 * 1000)
+    timer.unref?.()
     setTimeout(tick, 30 * 1000).unref?.()
     return () => clearInterval(timer)
   })
