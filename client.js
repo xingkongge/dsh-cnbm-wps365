@@ -447,8 +447,7 @@ window.__ModuleLoader__.load({
                   busy ? '发起中…' : (loggedIn ? '重新登录' : '登录 WPS')),
               status.state === 'cli-missing' || status.state === 'credentials-missing'
                 ? null
-                : h('button', { className: 'cnbm-btn', type: 'button', disabled: busy, onClick: () => void resetAuth() }, '清除令牌重授'),
-              h('button', { className: 'cnbm-btn', type: 'button', onClick: refresh }, '刷新'))),
+                : h('button', { className: 'cnbm-btn', type: 'button', disabled: busy, onClick: () => void resetAuth() }, '清除令牌重授'))),
           h('div', { className: 'cnbm-chips' },
             scopes.length
               ? scopes.map((scope) => h('span', { key: scope, className: 'cnbm-chip' }, scope))
