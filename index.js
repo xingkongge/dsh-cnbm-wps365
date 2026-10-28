@@ -25,7 +25,9 @@ import {
   startDeviceLogin,
   truncate,
 } from './lib/runner.js'
-import { readFile, unlink } from 'node:fs/promises'
+import { readFile, unlink, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { registerWebUi } from './lib/ui.js'
@@ -407,6 +409,7 @@ export function apply(ctx, rawConfig = {}) {
       versionOk: version.ok,
       businessCommandsAvailable: probe.available,
       configDir: auth.ok ? auth.configDir : '',
+      clientId: auth.ok ? (auth.clientId || '') : '',
       clientIdConfigured: auth.ok ? auth.clientIdConfigured : false,
       clientSecretConfigured: auth.ok ? auth.clientSecretConfigured : false,
       grantedScopes: auth.ok ? auth.grantedScopes : null,
@@ -1011,6 +1014,26 @@ export function apply(ctx, rawConfig = {}) {
       return { ok: true, url: prompt.url || '', userCode: prompt.userCode || '', qr, reused: Boolean(result.reused) }
     },
 
+    updateCheck: () => checkUpdates(),
+
+    async update({ key } = {}) {
+      try { return { ok: true, ...(await updatePlugin(key)) } } catch (e) { return { ok: false, error: String(e && e.message ? e.message : e) } }
+    },
+
+    async resetAuth() {
+      const cli = resolveCliPath(config)
+      if (!cli) return { ok: false, error: '未安装 wps365-cli' }
+      await runCli(cli, ['auth', 'logout'], config)
+      login.current = null
+      autoLogin.lastScopes = null
+      autoLogin.lastPrompt = null
+      const result = await ensureRelogin(DEFAULT_LOGIN_SCOPES.join(','))
+      if (result.error === 'cli-missing') return { ok: false, error: '未安装 wps365-cli' }
+      if (result.disabled) return { ok: false, error: '自动重登已禁用' }
+      const prompt = result.prompt || {}
+      return { ok: true, url: prompt.url || '', userCode: prompt.userCode || '', qr: await makeQr(prompt.url || '') }
+    },
+
     async bindApp({ clientId, clientSecret, apiBase } = {}) {
       if (!clientId || !clientSecret) return { ok: false, error: '缺少 App ID 或 App Secret' }
       const cli = resolveCliPath(config)
@@ -1025,6 +1048,62 @@ export function apply(ctx, rawConfig = {}) {
   // webServer 可能晚于本插件激活，必须先等它出现再注册路由，
   // 否则 registerWebUi 会静默返回 null（dsh-knowledge 用的是同一写法）。
   // 整个注册过程兜底 catch：Web 控制台失败不能连带回滚已注册的 15 个工具。
+  // ── 插件更新（GitHub Releases） ─────────────────────────────
+  const execFileAsync = promisify(execFile)
+  const PKG_SELF = '@cnbm/dsh-wps365'
+  const PKG_PRESALES = '@cnbm/dsh-presales'
+
+  async function ghLatest(repo) {
+    const headers = { 'user-agent': 'dsh-cnbm-updater', accept: 'application/vnd.github+json' }
+    if (config.githubToken) headers.authorization = `Bearer ${config.githubToken}`
+    const r = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers })
+    if (!r.ok) throw new Error(`GitHub ${r.status}`)
+    const d = await r.json()
+    const asset = (d.assets || []).find((a) => String(a.name).endsWith('.tgz'))
+    return { tag: d.tag_name, asset: asset ? { name: asset.name, url: asset.browser_download_url } : null }
+  }
+
+  async function localVersion(pkg) {
+    try { return JSON.parse(await readFile(new URL('./package.json', import.meta.url), 'utf8')).version } catch { return '' }
+  }
+
+  async function installedVersion(pkg) {
+    const base = process.env.DSH_PROFILE_DIR || path.join(process.env.HOME || '.', '.dsh', 'profiles', process.env.DSH_PROFILE || 'desktop')
+    try { return JSON.parse(await readFile(path.join(base, 'node_modules', pkg, 'package.json'), 'utf8')).version } catch { return '' }
+  }
+
+  async function checkUpdates() {
+    const out = []
+    for (const [key, repo] of Object.entries(config.updateRepos || {})) {
+      if (!repo) continue
+      try {
+        const latest = await ghLatest(repo)
+        const local = key === 'cnbm' ? await localVersion() : await installedVersion(PKG_PRESALES)
+        out.push({ key, repo, latest: latest.tag, local, asset: latest.asset, hasUpdate: !local || (latest.tag && String(latest.tag).replace(/^v/, '') !== String(local)) })
+      } catch (e) { out.push({ key, repo, error: String(e.message || e) }) }
+    }
+    return out
+  }
+
+  async function updatePlugin(key) {
+    const repo = (config.updateRepos || {})[key]
+    if (!repo) throw new Error(`未配置 ${key} 的仓库`)
+    const latest = await ghLatest(repo)
+    if (!latest.asset) throw new Error('该 Release 没有 tgz 资产')
+    const res = await fetch(latest.asset.url, { headers: { 'user-agent': 'dsh-cnbm-updater' } })
+    if (!res.ok) throw new Error(`下载失败 ${res.status}`)
+    const file = path.join(tmpdir(), latest.asset.name)
+    await writeFile(file, Buffer.from(await res.arrayBuffer()))
+    const profile = process.env.DSH_PROFILE || 'desktop'
+    const candidates = [process.env.DSH_CLI, 'dsh', '/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh'].filter(Boolean)
+    let lastError = null
+    for (const dsh of candidates) {
+      try { await execFileAsync(dsh, ['plugin', '--profile', profile, 'add', file], { timeout: 300000 }); lastError = null; break } catch (e) { lastError = e }
+    }
+    if (lastError) throw lastError
+    return { installed: latest.asset.name, tag: latest.tag, restartRequired: true }
+  }
+
   const mountUi = (runtime) => {
     try {
       const dispose = registerWebUi(runtime, { ops: uiOps })

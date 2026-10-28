@@ -145,6 +145,8 @@ window.__ModuleLoader__.load({
       const [keyword, setKeyword] = React.useState('')
       const [search, setSearch] = React.useState(null)
       const [login, setLogin] = React.useState(null)
+      const [updates, setUpdates] = React.useState(null)
+      const [updating, setUpdating] = React.useState('')
       const [appForm, setAppForm] = React.useState({ clientId: '', clientSecret: '', apiBase: '' })
       const [binding, setBinding] = React.useState(false)
       const autoLoginRef = React.useRef(false)
@@ -269,6 +271,44 @@ window.__ModuleLoader__.load({
         } finally {
           setBusy(false)
         }
+      }
+
+      async function checkUpdates() {
+        setBusy(true)
+        try { const r = await api('update-check'); setUpdates(r.repos || []) } catch (e) { setLogin({ pending: false, error: String(e.message || e) }) } finally { setBusy(false) }
+      }
+
+      async function doUpdate(key) {
+        setUpdating(key)
+        try {
+          const r = await api('update', { method: 'POST', body: JSON.stringify({ key }) })
+          if (!r.ok) setLogin({ pending: false, error: r.error || '更新失败' })
+          else { setLogin({ pending: false, error: '' }); await checkUpdates(); setBusy(true) }
+        } catch (e) { setLogin({ pending: false, error: String(e.message || e) }) } finally { setUpdating('') }
+      }
+
+      function renderUpdates() {
+        return h('section', { className: 'cnbm-card' },
+          h('div', { className: 'cnbm-row-between' },
+            h('div', { className: 'cnbm-muted', style: { fontSize: 12 } }, '插件更新（GitHub Releases）'),
+            h('button', { className: 'cnbm-btn', type: 'button', disabled: busy, onClick: () => void checkUpdates() }, '检查更新')),
+          updates ? h('div', null, updates.map((u) => h('div', { key: u.key, className: 'cnbm-row', style: { justifyContent: 'space-between', marginTop: 8 } },
+            h('span', null, h('b', null, u.key === 'cnbm' ? 'cnbm知识库' : '数字售前'), ` 本地 ${u.local || '?'} · 最新 ${u.latest || '?'}`),
+            u.error ? h('span', { className: 'cnbm-hint' }, u.error)
+              : u.hasUpdate ? h('button', { className: 'cnbm-btn', type: 'button', disabled: Boolean(updating), onClick: () => void doUpdate(u.key) }, updating === u.key ? '更新中…' : '更新')
+                : h('span', { className: 'cnbm-hint' }, '已是最新')))) : null,
+          h('div', { className: 'cnbm-hint', style: { marginTop: 6 } }, '更新后需完全重启 DSH。'))
+      }
+
+      async function resetAuth() {
+        setBusy(true)
+        try {
+          const r = await api('reset-auth', { method: 'POST' })
+          if (!r.ok) setLogin({ pending: false, error: r.error || '清除令牌失败' })
+          else setLogin({ pending: true, url: r.url || '', userCode: r.userCode || '', qr: r.qr || '' })
+        } catch (e) {
+          setLogin({ pending: false, error: String(e.message || e) })
+        } finally { setBusy(false) }
       }
 
       async function bindApp() {
@@ -400,12 +440,16 @@ window.__ModuleLoader__.load({
             h('div', { className: 'cnbm-row' },
               h('span', { className: 'cnbm-k' }, '状态'),
               h('span', { className: 'cnbm-badge ' + hit[1] }, hit[0]),
-              h('span', { className: 'cnbm-k' }, status.cliVersion ? 'CLI ' + status.cliVersion : '')),
+              h('span', { className: 'cnbm-k' }, status.cliVersion ? 'CLI ' + status.cliVersion : ''),
+              status.clientId ? h('span', { className: 'cnbm-k' }, 'App ' + status.clientId) : null),
             h('div', { className: 'cnbm-row' },
               status.state === 'cli-missing' || status.state === 'credentials-missing'
                 ? null
                 : h('button', { className: 'cnbm-btn', type: 'button', disabled: busy, onClick: startLogin },
                   busy ? '发起中…' : (loggedIn ? '重新登录' : '登录 WPS')),
+              status.state === 'cli-missing' || status.state === 'credentials-missing'
+                ? null
+                : h('button', { className: 'cnbm-btn', type: 'button', disabled: busy, onClick: () => void resetAuth() }, '清除令牌重授'),
               h('button', { className: 'cnbm-btn', type: 'button', onClick: refresh }, '刷新'))),
           h('div', { className: 'cnbm-chips' },
             scopes.length
@@ -522,6 +566,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'cnbm-actions' },
             h('button', { className: 'cnbm-btn', type: 'button', onClick: () => void refresh() }, '刷新'))),
         renderStatus(),
+        renderUpdates(),
         h('div', { className: 'cnbm-tabs', role: 'tablist' },
           h('button', {
             key: 'wiki', className: 'cnbm-tab', type: 'button', role: 'tab',
