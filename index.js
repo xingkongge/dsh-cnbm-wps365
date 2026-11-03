@@ -26,6 +26,7 @@ import {
   truncate,
 } from './lib/runner.js'
 import { readFile, unlink, writeFile } from 'node:fs/promises'
+import { existsSync, readdirSync } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { tmpdir } from 'node:os'
@@ -1153,12 +1154,34 @@ export function apply(ctx, rawConfig = {}) {
     const file = path.join(tmpdir(), latest.asset.name)
     await writeFile(file, await downloadAsset(latest.asset.url))
     const profile = process.env.DSH_PROFILE || 'desktop'
-    const candidates = [process.env.DSH_CLI, 'dsh', '/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh'].filter(Boolean)
+    const candidates = []
+    const add = (p, requireExists = true) => { if (p && (!requireExists || existsSync(p))) candidates.push(p) }
+    add(process.env.DSH_CLI)
+    add('dsh', false)
+    try {
+      const m = String(process.execPath || '').match(/^(.*\/Contents)\/MacOS\//)
+      if (m) add(path.join(m[1], 'Resources', 'runtime', 'cli', 'bin', 'dsh'))
+    } catch {}
+    add(path.join(homedir(), '.local', 'bin', 'dsh'))
+    add('/usr/local/bin/dsh')
+    add('/opt/homebrew/bin/dsh')
+    for (const dir of ['/Applications', path.join(homedir(), 'Applications')]) {
+      try {
+        for (const app of readdirSync(dir)) {
+          if (!/Harness/i.test(app) || !app.endsWith('.app')) continue
+          add(path.join(dir, app, 'Contents', 'Resources', 'runtime', 'cli', 'bin', 'dsh'))
+        }
+      } catch {}
+    }
+    add('/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh')
+    add('/Applications/DeepSeek Harness Dev.app/Contents/Resources/runtime/cli/bin/dsh')
+    const tried = []
     let lastError = null
-    for (const dsh of candidates) {
+    for (const dsh of [...new Set(candidates)]) {
+      tried.push(dsh)
       try { await execFileAsync(dsh, ['plugin', '--profile', profile, 'add', file], { timeout: 300000 }); lastError = null; break } catch (e) { lastError = e }
     }
-    if (lastError) throw lastError
+    if (lastError) throw new Error(`找不到可用的 dsh 命令（已尝试 ${tried.join('、') || '无'}）。请设置 DSH_CLI 指向 dsh，或手动执行：dsh plugin add "${file}"`)
     return { installed: latest.asset.name, tag: latest.tag, restartRequired: true }
   }
 
