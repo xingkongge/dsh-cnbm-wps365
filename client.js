@@ -478,11 +478,18 @@ window.__ModuleLoader__.load({
           login && login.pending
             ? h('div', { className: 'cnbm-hint' },
               login.qr ? h('img', { src: login.qr, alt: '登录二维码', width: 180, height: 180, style: { display: 'block', margin: '8px 0', borderRadius: 8 } }) : null,
-              '扫码或打开链接完成授权：',
-              login.url ? h('div', null, h('a', { className: 'cnbm-link', href: login.url, target: '_blank', rel: 'noopener' }, login.url)) : null,
-              !login.url && (login.error || login.raw) ? h('div', { style: { marginTop: 6 } },
-                h('div', { style: { color: '#b45309' } }, login.error ? '登录进程报错：' + login.error : '暂未解析到授权链接，CLI 原始输出：'),
-                login.raw ? h('pre', { style: { whiteSpace: 'pre-wrap', fontSize: 11, maxHeight: 140, overflow: 'auto', background: '#f6f7f9', padding: 8, borderRadius: 6 } }, login.raw) : null) : null,
+              (() => {
+                const rawUrl = String(login.raw || '').match(/https?:\/\/[^\s"'<>）)]+/)
+                const authUrl = login.url || (rawUrl ? rawUrl[0] : '')
+                return h('div', null,
+                  h('div', null, '授权链接（浏览器没有自动打开时，复制到浏览器打开）：'),
+                  authUrl ? h('div', { style: { margin: '4px 0' } },
+                    h('a', { className: 'cnbm-link', href: authUrl, target: '_blank', rel: 'noopener' }, authUrl),
+                    h('button', { className: 'cnbm-btn', type: 'button', style: { marginLeft: 8 }, onClick: () => { try { navigator.clipboard.writeText(authUrl) } catch {} } }, '复制链接')) : null,
+                  !authUrl && (login.error || login.raw) ? h('div', { style: { marginTop: 6 } },
+                    h('div', { style: { color: '#b45309' } }, login.error ? '登录进程报错：' + login.error : '暂未解析到授权链接，CLI 原始输出：'),
+                    login.raw ? h('pre', { style: { whiteSpace: 'pre-wrap', fontSize: 11, maxHeight: 140, overflow: 'auto', background: '#f6f7f9', padding: 8, borderRadius: 6 } }, login.raw) : null) : null)
+              })(),
               login.userCode ? h('div', null, '用户码：', h('strong', null, login.userCode)) : null,
               h('div', null, '授权完成后本面板会自动刷新。'))
             : null)
