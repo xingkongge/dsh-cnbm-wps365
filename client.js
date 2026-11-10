@@ -167,7 +167,7 @@ window.__ModuleLoader__.load({
           if (next && next.state !== 'logged-in') setExpired(false)
           // 服务端已自动发起重登：直接把验证地址/用户码显示到面板
           if (next && next.login && next.login.pending) {
-            setLogin({ pending: true, url: next.login.url || '', userCode: next.login.userCode || '', qr: next.login.qr || '' })
+            setLogin({ pending: true, url: next.login.url || '', userCode: next.login.userCode || '', qr: next.login.qr || '', error: next.login.error || '', raw: next.login.raw || '' })
           }
           return next
         } catch (error) {
@@ -241,7 +241,7 @@ window.__ModuleLoader__.load({
           }
           if (next && next.login && next.login.pending) {
             setLogin((prev) => (prev
-              ? Object.assign({}, prev, { url: next.login.url || prev.url, userCode: next.login.userCode || prev.userCode, qr: next.login.qr || prev.qr })
+              ? Object.assign({}, prev, { url: next.login.url || prev.url, userCode: next.login.userCode || prev.userCode, qr: next.login.qr || prev.qr, error: next.login.error || prev.error || '', raw: next.login.raw || prev.raw || '' })
               : prev))
           }
         }, 3000)
@@ -480,6 +480,9 @@ window.__ModuleLoader__.load({
               login.qr ? h('img', { src: login.qr, alt: '登录二维码', width: 180, height: 180, style: { display: 'block', margin: '8px 0', borderRadius: 8 } }) : null,
               '扫码或打开链接完成授权：',
               login.url ? h('div', null, h('a', { className: 'cnbm-link', href: login.url, target: '_blank', rel: 'noopener' }, login.url)) : null,
+              !login.url && (login.error || login.raw) ? h('div', { style: { marginTop: 6 } },
+                h('div', { style: { color: '#b45309' } }, login.error ? '登录进程报错：' + login.error : '暂未解析到授权链接，CLI 原始输出：'),
+                login.raw ? h('pre', { style: { whiteSpace: 'pre-wrap', fontSize: 11, maxHeight: 140, overflow: 'auto', background: '#f6f7f9', padding: 8, borderRadius: 6 } }, login.raw) : null) : null,
               login.userCode ? h('div', null, '用户码：', h('strong', null, login.userCode)) : null,
               h('div', null, '授权完成后本面板会自动刷新。'))
             : null)

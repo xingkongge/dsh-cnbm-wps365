@@ -125,6 +125,8 @@ export function apply(ctx, rawConfig = {}) {
       userCode: prompt.userCode || '',
       startedAt: pending.startedAt,
       exitCode: pending.exitCode,
+      error: pending.error ? String(pending.error.message || pending.error) : '',
+      raw: prompt.url ? '' : String(pending.output || '').slice(-600),
       qr: autoLogin.lastQr && autoLogin.lastQr.url === prompt.url ? autoLogin.lastQr.data : '',
     }
   }
@@ -141,6 +143,17 @@ export function apply(ctx, rawConfig = {}) {
       '请用【企业账号】在浏览器确认授权；完成后重新调用本工具即可，无需再手动登录。',
     ]
     return lines.filter(Boolean).join('\n')
+  }
+
+  let lastOpenedUrl = ''
+  function openUrl(url) {
+    if (!url || url === lastOpenedUrl) return
+    lastOpenedUrl = url
+    try {
+      const cmd = process.platform === 'darwin' ? 'open' : (process.platform === 'win32' ? 'cmd' : 'xdg-open')
+      const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url]
+      execFile(cmd, args, { windowsHide: true, timeout: 10000 }, () => {})
+    } catch { /* 浏览器打不开时仍可在面板里手动复制链接 */ }
   }
 
   /** 把验证 URL 生成为 PNG data URL（扫码用），失败返回空串。 */
@@ -181,7 +194,7 @@ export function apply(ctx, rawConfig = {}) {
     await new Promise((resolve) => setTimeout(resolve, 2000))
     const prompt = extractDevicePrompt(state.output)
     autoLogin.lastPrompt = prompt
-    if (prompt.url) await makeQr(prompt.url)
+    if (prompt.url) { openUrl(prompt.url); await makeQr(prompt.url) }
     return { pending: state.exitCode === null, reused: false, prompt, scopes: requested }
   }
 
