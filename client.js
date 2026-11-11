@@ -357,27 +357,39 @@ window.__ModuleLoader__.load({
         void loadSpaces()
       }
 
-      async function openFile(id, name) {
+      function parseMarkdownTable(text) {
+        const lines = String(text || '').split(/\r?\n/).filter((x) => x.trim().startsWith('|'))
+        if (lines.length < 2) return null
+        const split = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((x) => x.trim())
+        const rows = lines.map(split).filter((r) => !r.every((c) => /^:?-{2,}:?$/.test(c)))
+        if (rows.length < 2) return null
+        return { fields: rows[0].slice(0, 12), rows: rows.slice(1, 21).map((r) => r.slice(0, 12)) }
+      }
+
+      async function openFile(id, name, sheetId) {
         const isDbt = /\.dbt$/i.test(String(name || ''))
-        setReader({ title: name || '正文', text: isDbt ? '' : '读取中…', error: '', data: null })
+        const isXlsx = /\.xlsx?$/i.test(String(name || ''))
+        setReader({ title: name || '正文', fileId: id, text: isDbt ? '' : '读取中…', error: '', data: null })
         if (isDbt) {
           try {
-            const result = await api('dbt-preview?fileId=' + encodeURIComponent(id))
-            if (result.ok) setReader({ title: name || '.dbt', text: '', error: '', data: result })
-            else setReader({ title: name || '.dbt', text: '', error: result.error || '预览失败', data: null })
+            const result = await api('dbt-preview?fileId=' + encodeURIComponent(id) + (sheetId ? '&sheetId=' + encodeURIComponent(sheetId) : ''))
+            if (result.ok) setReader({ title: name || '.dbt', fileId: id, text: '', error: '', data: result })
+            else setReader({ title: name || '.dbt', fileId: id, text: '', error: result.error || '预览失败', data: null })
           } catch (error) {
-            setReader({ title: name || '.dbt', text: '', error: String((error && error.message) || error), data: null })
+            setReader({ title: name || '.dbt', fileId: id, text: '', error: String((error && error.message) || error), data: null })
           }
           return
         }
         try {
           const result = await api('read?fileId=' + encodeURIComponent(id))
           const failure = result.ok ? '' : (result.error || '读取失败')
-          setReader({ title: name || '正文', text: result.ok ? result.text : '', error: failure })
+          const table = result.ok && isXlsx ? parseMarkdownTable(result.text) : null
+          if (table) setReader({ title: name || '表格', fileId: id, text: '', error: '', data: { ...table, sheetName: '工作表', sheets: [{ id: '0', name: '工作表' }], rows: table.rows } })
+          else setReader({ title: name || '正文', fileId: id, text: result.ok ? result.text : '', error: failure })
           if (isExpiredText(failure)) setExpired(true)
         } catch (error) {
           const message = String((error && error.message) || error)
-          setReader({ title: name || '正文', text: '', error: message })
+          setReader({ title: name || '正文', fileId: id, text: '', error: message })
           if (isExpiredText(message)) setExpired(true)
         }
       }
@@ -584,6 +596,8 @@ window.__ModuleLoader__.load({
             ? h('div', { className: 'cnbm-hint cnbm-err' }, reader.error)
             : reader.data
               ? h('div', null,
+                reader.data.sheets && reader.data.sheets.length > 1 ? h('div', { className: 'cnbm-tabs', style: { marginBottom: 8 } },
+                  reader.data.sheets.map((sh) => h('button', { key: sh.id, className: 'cnbm-tab', type: 'button', 'aria-selected': sh.name === reader.data.sheetName, onClick: () => void openFile(reader.fileId, reader.title, sh.id) }, sh.name))) : null,
                 h('div', { className: 'cnbm-row-between', style: { marginBottom: 8 } },
                   h('span', { className: 'cnbm-hint' }, `${reader.data.sheetName} · 预览前 ${reader.data.rows.length} 行（最多 8 列）`),
                   reader.data.link ? h('a', { className: 'cnbm-btn', href: reader.data.link, target: '_blank', rel: 'noopener' }, '在 WPS 中打开') : null),

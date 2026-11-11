@@ -997,7 +997,7 @@ export function apply(ctx, rawConfig = {}) {
         : { ok: false, error: result.text }
     },
 
-    async dbtPreview({ fileId } = {}) {
+    async dbtPreview({ fileId, sheetId } = {}) {
       if (!/^[\w-]+$/.test(String(fileId || ''))) return { ok: false, error: 'fileId 不合法' }
       const ready = await preflight({ scopes: ['kso.dbsheet.readwrite', 'kso.file.read'] })
       if (!ready.ok) return { ok: false, error: ready.text }
@@ -1007,7 +1007,7 @@ export function apply(ctx, rawConfig = {}) {
       const schema = await runCliJson(ready.cli, ['dbsheet', 'schema', 'get', real, '-o', 'json'], config)
       if (!schema.ok) return { ok: false, error: `读取表结构失败：${schema.stderr || schema.stdout}` }
       const sheets = (schema.json?.data?.sheets || []).filter((x) => x.name !== '仪表盘')
-      const sheet = sheets[0]
+      const sheet = sheets.find((x) => String(x.id) === String(sheetId)) || sheets[0]
       if (!sheet) return { ok: false, error: `该文件没有可预览的数据表（sheets=${(schema.json?.data?.sheets || []).length}）` }
       const recs = await runCliJson(ready.cli, ['dbsheet', 'record', 'list', real, String(sheet.id), '--page-size', '20', '-o', 'json'], config)
       if (!recs.ok) return { ok: false, error: `读取记录失败：${recs.stderr || recs.stdout}` }
@@ -1023,7 +1023,7 @@ export function apply(ctx, rawConfig = {}) {
           return String(v)
         })
       })
-      return { ok: true, link: identity.meta?.link_url || '', sheetName: sheet.name, fields, rows, total: rows.length }
+      return { ok: true, link: identity.meta?.link_url || '', sheetId: sheet.id, sheetName: sheet.name, sheets: sheets.map((x) => ({ id: x.id, name: x.name })), fields, rows, total: rows.length }
     },
 
     async search({ keyword, spaceIds, pageSize } = {}) {
